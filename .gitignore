@@ -13,3 +13,20 @@ lean.log
 # OS Files
 .DS_Store
 Thumbs.db
+
+# QuantConnect LEAN Local Files
+config.json
+*.json
+cache/
+storage/
+debug_logs/
+bin/
+obj/
+
+# Python
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Environment
+.env
