@@ -1,0 +1,15 @@
+# Private Configuration & Secret Sauce
+config.json
+*.json
+
+# LEAN Build Caches & Logs
+/bin/
+/obj/
+/debug/
+lean.log
+*.db
+*.sqlite
+
+# OS Files
+.DS_Store
+Thumbs.db
