@@ -6,6 +6,9 @@ config.json
 /bin/
 /obj/
 /debug/
+lean.json
+data
+data/
 lean.log
 *.db
 *.sqlite
