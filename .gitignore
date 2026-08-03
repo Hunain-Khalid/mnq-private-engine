@@ -8,6 +8,8 @@ config.json
 /debug/
 lean.json
 data
+storage
+storage/
 data/
 lean.log
 *.db
@@ -30,6 +32,28 @@ obj/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
+.venv
+.venv/
 
 # Environment
 .env
+
+.zip
+.csv.zst
+.zst
+.csv
+
+# Block all local multi-gigabyte tick data files
+storage/
+
+# Block your private algorithmic research environment
+research/
+
+# Block your true mathematical Alpha calculations code modules
+backend/app/secret_sauce/
+
+# Block active environment variables and API keys
+*.env
+*.pyc
+__pycache__/
+.ipynb_checkpoints/
