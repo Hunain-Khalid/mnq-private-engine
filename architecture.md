@@ -6,37 +6,45 @@
                │
                ▼  (ETL Script: Stream & Downsample)
    ┌───────────────────────┐
-   │  DuckDB + Parquet     │ ◄─── (Lightning-Fast In-Memory SQL Query Layer)
+   │  DuckDB + Parquet     │ ◄─── (In-Memory SQL Analytical Storage Tier)
    └───────────────────────┘
-         │               │
-         │ (Query)       │ (Query)
-         ▼               ▼
-   ┌───────────┐   ┌──────────────────────────────┐
-   │ Jupyter   │   │  VectorBT Pro Optimization   │
-   │ Research  │   │  (Vectorized Grid Searches)  │
-   └───────────┘   └──────────────┬───────────────┘
-                                  │
-                                  ▼ (Extract Winning Parameters)
-                   ┌──────────────────────────────┐
-                   │  /backend/app/secret_sauce/  │ ◄─── 🔒 PRIVATE IP (Firewalled)
-                   └──────────────┬───────────────┘
-                                  │
-                                  ▼ (Dynamic Try/Except Injection)
-                   ┌──────────────────────────────┐
-                   │  FastAPI Execution Backend   │ ◄─── Risk Engine & Paper Node
-                   └──────────────┬───────────────┘
-                                  │
-                                  ▼ (JSON Telemetry REST API)
+         │               ▲
+         │ (SQL Query)   │ (Log Performance / Retrain Feedback Loop)
+         ▼               │
+   ┌─────────────────────┴────────┐
+   │ Jupyter Research Lab         │ ◄─── (Alpha Prototyping & EDA)
+   └──────────────┬───────────────┘
+                  │
+                  ▼ (Pass Strategy Matrix)
+   ┌──────────────────────────────┐
+   │ VectorBT Pro Optimization    │ ──(Iterative Grid/Bayesian Search)──┐
+   └──────────────┬───────────────┘                                     │
+                  │                                                     │
+                  ▼ (Find Stability Corridors)                          │
+   ┌──────────────────────────────┐                                     │
+   │ /backend/app/secret_sauce/   │ ◄─── 🔒 PRIVATE IP (Firewalled)     │
+   └──────────────┬───────────────┘                                     │
+                  │                                                     │
+                  ▼ (Dynamic Try/Except Injection)                      │
+   ┌──────────────────────────────┐                                     │
+   │ FastAPI Execution Backend    │ ◄─── Risk Engine & Live Paper Node  │
+   └──────────────┬───────────────┘                                     │
+                  │                                                     │
+                  ├──(Execute Paper Trades via Broker API)──────────────┤
+                  │                                                     │
+                  ▼ (JSON Telemetry REST API)                           │
  ╔════════════════════════════════════════════════════════════════════════════════════╗
  ║                         🌐 PUBLIC INTERNET / RECRUITERS                            ║
  ╚════════════════════════════════════════════════════════════════════════════════════╝
-                                  │
-                                  ▼
-                   ┌──────────────────────────────┐
-                   │  React / Next.js Dashboard   │ ◄─── TradingView Lightweight Charts
-                   └──────────────┬───────────────┘
-                                  │
-                                  ▼ (Static Deployment)
-                   ┌──────────────────────────────┐
-                   │   GitHub Pages (Live Node)   │ ◄─── Recruiter Showcase Billboard
-                   └──────────────────────────────┘
+                  │                                                     │
+                  ▼                                                     │
+   ┌──────────────────────────────┐                                     │
+   │ React / Next.js Dashboard    │ ◄─── TradingView Lightweight Charts │
+   └──────────────┬───────────────┘                                     │
+                  │                                                     │
+                  ▼ (Static Deployment)                                 │
+   ┌──────────────────────────────┐                                     │
+   │ GitHub Pages (Live Node)     │ ◄─── Recruiter Showcase Billboard   │
+   └──────────────────────────────┘                                     │
+                  │                                                     │
+                  └──────(Export Trade Logs / CSVs)─────────────────────┘
