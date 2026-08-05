@@ -57,3 +57,37 @@ backend/app/secret_sauce/
 *.pyc
 __pycache__/
 .ipynb_checkpoints/
+
+# ==========================================
+# 🔒 ALPHA FLUSH NODE - SECURE IGNORE FIREWALL
+# ==========================================
+
+# 1. Local Data Storage & Analytical Databases (DO NOT PUSH DATA)
+storage/
+*.duckdb
+*.parquet
+
+# 2. Python Environment & Build Caches
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.ipynb_checkpoints/
+
+# 3. Local OS System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 4. Secret Configuration & API Keys
+config.json
+.env
+secret_sauce/
+
+# 5. IDE & Editor Workspace Settings
+.vscode/
+.idea/
+*.swp
+*.swo
