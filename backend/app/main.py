@@ -1,35 +1,112 @@
-from fastapi import FastAPI, HTTPException
-from app.database import query_15m_bars
+from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.cors import CORSMiddleware
+import duckdb
+import os
+import pathlib
 import pandas as pd
 
-# Open Source Router Boilerplate
-app = FastAPI(title="Alpha Flush Execution Hub")
+app = FastAPI(title="Alpha Flush Node API", version="2.5")
 
-try:
-    # 🔒 DYNAMIC IMPORT TRICK:
-        # Try to load your secret sauce. If it's running locally on your PC, it works.
-        # If a recruiter builds it from GitHub, it safely falls back to a dummy class!
-    from app.secret_sauce.alpha_signals import calculate_proprietary_signals
-except ImportError:
-    # Open Source Dummy Fallback so the code doesn't crash on public repos
-    # Public placeholder mock function (Secret Sauce stays hidden)
-    df['entries'] = df['close'] > df['open']
-    df['tp_target'] = df['close'] * 1.01
-    df['sl_target'] = df['close'] * 0.99
-    return df
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.get("/api/v1/backtest")
-def run_strategy_backtest(tp_mult: float = 3.57, sl_mult: float = 2.49):
+ROOT_DIR = pathlib.Path(__file__).resolve().parent.parent.parent
+DUCKDB_PATH = os.path.join(ROOT_DIR, "storage", "alpha_node.duckdb")
+
+@app.get("/api/v1/candles")
+def get_candles(
+    resolution: str = Query("1m", pattern="^(1m|15m|1h)$"),
+    mode: str = Query("price", pattern="^(price|log_return)$"),
+    start: int = None,
+    end: int = None,
+    limit: int = 50000
+):
+    print(f"🔥 [API] Querying Multi-Res Pyramid -> resolution: {resolution}, mode: {mode}, limit: {limit}")
+
+    response_payload = {"candles": [], "markers": []}
+
+    if not os.path.exists(DUCKDB_PATH):
+        print("❌ [API Error] DuckDB storage tier not found!")
+        return response_payload
+
     try:
-        # 1. Fetch data from your open-source database wrapper
-        df = query_15m_bars()
+        con = duckdb.connect(DUCKDB_PATH, read_only=True)
 
-        # 2. Run the signal module (calculates using hidden math if local)
-        df_with_signals = calculate_proprietary_signals(df)
+        # Select target pre-aggregated table based on resolution
+        table_map = {"1m": "nq_1m", "15m": "nq_15m", "1h": "nq_1h"}
+        target_table = table_map.get(resolution, "nq_1m")
 
-        # 3. Process VectorBT metrics package safely...
-        # (The engine uses df_with_signals['entries'] to generate JSON for React)
-        return {"status": "success", "total_trades": len(df_with_signals[df_with_signals['entries'] == True])}
+        if mode == "log_return":
+            val_select = "COALESCE(log_return, 0.0) as open, COALESCE(log_return, 0.0) as high, COALESCE(log_return, 0.0) as low, COALESCE(log_return, 0.0) as close"
+        else:
+            val_select = "open, high, low, close"
+
+            # Time-window filtering for infinite scroll / panning
+            where_clause = "WHERE 1=1"
+            if start and end:
+                where_clause += f" AND datetime BETWEEN epoch_ms({start} * 1000) AND epoch_ms({end} * 1000)"
+
+                query = f"""
+                SELECT datetime, {val_select}, volume
+                FROM {target_table}
+                {where_clause}
+                ORDER BY datetime ASC
+                LIMIT {limit};
+                """
+
+                df = con.execute(query).fetchdf()
+                con.close()
+
+                if df is None or df.empty:
+                    print(f"⚠️ [API Warning] Query for {resolution} returned empty dataframe.")
+                    return response_payload
+
+                raw_records = []
+                for _, row in df.iterrows():
+                    dt = pd.to_datetime(row["datetime"])
+                    if pd.notnull(dt):
+                        raw_records.append({
+                            "time": int(dt.timestamp()),
+                            "open": float(row["open"]),
+                            "high": float(row["high"]),
+                            "low": float(row["low"]),
+                            "close": float(row["close"]),
+                            "volume": float(row["volume"])
+                        })
+
+                        # Strict chronological deduplication
+                        seen_times = set()
+                        records = []
+                        for item in sorted(raw_records, key=lambda x: x["time"]):
+                            if item["time"] not in seen_times:
+                                seen_times.add(item["time"])
+                                records.append(item)
+
+                                # Generate sample trade execution markers
+                                markers = []
+                                if len(records) > 10:
+                                    for i in range(5, len(records), max(1, int(len(records)/4))):
+                                        markers.append({
+                                            "time": int(records[i]["time"]),
+                                            "position": "belowBar",
+                                            "color": "#26a69a",
+                                            "shape": "arrowUp",
+                                            "text": "Flush Buy"
+                                        })
+
+                                        response_payload["candles"] = records
+                                        response_payload["markers"] = markers
+
+                                        print(f"✅ [API] Successfully streaming {len(records)} bars from table '{target_table}'.")
+                                        return response_payload
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"❌ [API CRASH EXCEPTION]: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return response_payload
