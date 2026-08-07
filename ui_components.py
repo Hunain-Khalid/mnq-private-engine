@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import altair as alt
+import numpy as np
 from backend_metrics import cached_read_markdown, cached_read_file_bytes
 
 def render_sidebar():
@@ -23,15 +24,15 @@ def render_sidebar():
 
 @st.fragment
 def render_interactive_equity_chart(metrics, eq_df):
-    """Renders the clean single-color institutional equity curve, starting equity baseline, and 12-metric grid with percentages."""
+    """Renders the clean single-color institutional equity curve, starting equity baseline, and 12-metric grid."""
     
     st.markdown("""
         <style>
             [data-testid="stMetricValue"] {
-                font-size: 22px !important;
+                font-size: 20px !important;
             }
             [data-testid="stMetricLabel"] {
-                font-size: 13px !important;
+                font-size: 12px !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -60,56 +61,84 @@ def render_interactive_equity_chart(metrics, eq_df):
     peak_val = eq_series.max()
     trough_val = eq_series.min()
     net_pnl = end_val - start_val
+    trades_count = metrics.get('total_trades', 0)
     
-    # Calculate dollar drop and % drop for max drawdown
-    max_dd_val = peak_val - trough_val
-    max_dd_pct = (max_dd_val / peak_val) * 100 if peak_val > 0 else 0.0
-    
+    # 🕒 PROGRAMMATIC YEARS CALCULATION
+    try:
+        start_date = eq_df.index[0]
+        end_date = eq_df.index[-1]
+        days_spanned = (end_date - start_date).days
+        years_spanned = max(days_spanned / 365.25, 0.1)
+    except Exception:
+        years_spanned = 1.0
+
     win_cnt = metrics.get('winners', 0)
     loss_cnt = metrics.get('losers', 0)
     
-    # Parse raw trade numbers for Avg Win/Loss percentages
+    # 1. PARSE RAW TRADES FIRST (So variables exist before math uses them!)
     raw_trades_df = metrics.get("raw_trades")
     avg_win_val = 0.0
     avg_loss_val = 0.0
+    total_fees_val = 0.0
+    
     if isinstance(raw_trades_df, pd.DataFrame) and not raw_trades_df.empty:
         pnl_col = next((col for col in raw_trades_df.columns if any(k in col.lower() for k in ['profit', 'net', 'pnl', 'p&l', 'return', 'gain'])), None)
+        fee_col = next((col for col in raw_trades_df.columns if any(k in col.lower() for k in ['fee', 'commission'])), None)
+        
         if pnl_col:
-            clean_pnl = pd.to_numeric(
-                raw_trades_df[pnl_col].astype(str).str.replace('$', '').str.replace(',', ''), 
-                errors='coerce'
-            )
+            clean_pnl = pd.to_numeric(raw_trades_df[pnl_col].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
             avg_win_val = clean_pnl[clean_pnl > 0].mean() if win_cnt > 0 else 0.0
             avg_loss_val = abs(clean_pnl[clean_pnl < 0].mean()) if loss_cnt > 0 else 0.0
+            
+        if fee_col:
+            clean_fees = pd.to_numeric(raw_trades_df[fee_col].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
+            total_fees_val = clean_fees.sum()
+
+    # 2. NOW CALCULATE RATIOS & METRICS THAT DEPEND ON THOSE VARIABLES
+    max_dd_val = peak_val - trough_val
+    max_dd_pct = (max_dd_val / peak_val) * 100 if peak_val > 0 else 0.0
+    recovery_factor = abs(net_pnl / max_dd_val) if max_dd_val > 0 else 0.0
+    expectancy_val = net_pnl / trades_count if trades_count > 0 else 0.0
+    payoff_ratio = (avg_win_val / avg_loss_val) if avg_loss_val > 0 else 0.0
+    
+    cagr_approx = ((end_val / start_val) ** (1 / years_spanned)) - 1 if start_val > 0 else 0.0
+    max_dd_decimal = max_dd_val / peak_val if peak_val > 0 else 0.001
+    calmar_val = (cagr_approx / max_dd_decimal) if max_dd_decimal > 0 else 0.0
+
+    returns = eq_series.pct_change().dropna()
+    downside_returns = returns[returns < 0]
+    downside_std = downside_returns.std() * np.sqrt(252) if len(downside_returns) > 0 else 0.001
+    mean_return = returns.mean() * 252
+    sortino_val = (mean_return / downside_std) if downside_std > 0 else 0.0
 
     avg_win_pct = (avg_win_val / start_val) * 100 if start_val > 0 else 0.0
     avg_loss_pct = (avg_loss_val / start_val) * 100 if start_val > 0 else 0.0
     raw_max_dd_str = metrics.get("max_drawdown", "31.7%")
 
     # ==========================================
-    # 🏛️ 12-METRIC INSTITUTIONAL QUANT GRID (Percentages Added)
+    # 🏛️ 12-METRIC INSTITUTIONAL QUANT GRID
     # ==========================================
     
-    # Row 1: Core Return & Risk-Adjusted Metrics (With Max DD Dollar & % breakdown)
+    # Row 1: Core Return & Risk Ratios (Sharpe, Sortino, Calmar, Profit Factor)
     r1_c1, r1_c2, r1_c3, r1_c4 = st.columns(4)
     r1_c1.metric("Sharpe Ratio", metrics.get("sharpe", "N/A"))
-    r1_c2.metric("Profit Factor", metrics.get("profit_factor", "N/A"))
-    r1_c3.metric("Max Drawdown", f"{raw_max_dd_str} (-${max_dd_val:,.0f})")
-    r1_c4.metric("Win Rate", metrics.get("win_rate", "N/A"))
+    r1_c2.metric("Sortino Ratio", f"{sortino_val:.2f}")
+    r1_c3.metric("Calmar Ratio", f"{calmar_val:.2f}")
+    r1_c4.metric("Profit Factor", metrics.get("profit_factor", "N/A"))
 
-    # Row 2: Trade Execution & Size Metrics (With Avg Win/Loss Percentages)
+    # Row 2: Trade Execution & Size (Total Trades, Avg Win, Avg Loss, Payoff Ratio)
     r2_c1, r2_c2, r2_c3, r2_c4 = st.columns(4)
-    r2_c1.metric("Total Trades", metrics.get("total_trades", "N/A"))
+    r2_c1.metric("Total Trades", trades_count)
     r2_c2.metric("Avg Win", f"${avg_win_val:,.2f} (+{avg_win_pct:.2f}%)" if win_cnt > 0 else "$0.00")
     r2_c3.metric("Avg Loss", f"-${avg_loss_val:,.2f} (-{avg_loss_pct:.2f}%)" if loss_cnt > 0 else "$0.00")
-    r2_c4.metric("W / L", f"{win_cnt}W / {loss_cnt}L")
+    r2_c4.metric("Payoff Ratio (Win/Loss)", f"{payoff_ratio:.2f}x")
 
-    # Row 3: Portfolio Capital & Watermark Metrics
+    # Row 3: Portfolio Capital, Fees & Risk Metrics (Net P&L, Total Fees, Max Drawdown, Recovery Factor)
     r3_c1, r3_c2, r3_c3, r3_c4 = st.columns(4)
     r3_c1.metric("Net P&L", f"${net_pnl:,.0f}", delta=f"{(net_pnl/start_val)*100:.1f}%")
-    r3_c2.metric("High Watermark (Peak)", f"${peak_val:,.0f}")
-    r3_c3.metric("Max Trough", f"${trough_val:,.0f}")
-    r3_c4.metric("Ending Capital", f"${end_val:,.0f}")
+    r3_c2.metric("Total Fees Paid", f"${total_fees_val:,.2f}")
+    r3_c3.metric("Max Drawdown", f"{max_dd_pct:.1f}% (-${max_dd_val:,.0f})")
+    r3_c4.metric("Recovery Factor", f"{recovery_factor:.2f}x")
 
 def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matching_orders):
     """Renders the comprehensive 4-tab advanced quantitative data layout per iteration."""
@@ -117,7 +146,7 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
     tab_equity, tab_analytics, tab_ledger, tab_raw = st.tabs([
         "Equity Curve & Summary", 
         "Trade Analytics & Returns Distribution", 
-        "Strategy Experiment & Ledger",  # Renamed Tab!
+        "Strategy Experiment & Ledger", 
         "Raw CSV Inspector"
     ])
     
