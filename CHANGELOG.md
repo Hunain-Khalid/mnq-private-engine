@@ -4,12 +4,12 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ---
 
-##  Quantitative Research Ledger (Alpha Experiments)
-
-### [v1.0.0-ALPHA] - 2026-08-06 14:30 EST (Active Experiment)
-- **Target Asset:** MNQ (Nasdaq E-mini Micro Futures)
-- **Core Hypothesis:** Implementing a Hull Moving Average (HMA) multi-timeframe slope filter combined with an Average True Range (ATR) expansion gate will filter out low-volume regular trading hours (RTH) chop. 
-- **Expected Outcome:** Lower overall trade frequency by ~40%, but significantly reduce maximum drawdown and push the Out-of-Sample (OOS) Sharpe ratio above 1.5.
+### [v0.1.01-EOD] - 2026-08-06 15:00 EST (Active Experiment)
+- **In-Sample Window:** 2020-01-01 to 2024-06-30 (Parameter Tuning)
+- **Out-of-Sample Window:** 2024-07-01 to 2026-06-30 (Blind Verification)
+- **Target Asset:** SP_500_E_MINI (ES)
+- **Pre-Execution Hypothesis:** Forcing an absolute End-of-Day liquidation between 3:45-3:49 PM EST to avoid overnight gaps will **substantially degrade performance**.
+- **Economic Rationale:** Trend-following models rely on multi-day momentum and overnight gap expansions. Forcing flat closes amputates fat-tail returns and increases cumulative intraday execution friction.
 
 ### [v0.1.0-BASELINE] - 2026-08-05 21:00 EST (Archived Experiment)
 - **Phase:** In-Sample Training (IS) [FAILED]
