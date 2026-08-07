@@ -31,19 +31,31 @@ if page == "Backtests (IS / OOS)":
     
     pdf_files = get_cached_reports()
     
-    # Hero Section for Best Model
-    hero_metrics = None
+    # 🏆 FIND REIGNING CHAMPION FOR THE HERO EQUITY CURVE
+    champ_pdf = None
+    champ_sharpe = -999.0
+    champ_metrics = None
+    
     for p_path in pdf_files:
-        if "oos" in p_path.stem.lower() and "fail" not in p_path.stem.lower():
-            hero_metrics = load_qc_json_metrics(p_path.stem)
-            break
-    if not hero_metrics and pdf_files:
-        hero_metrics = load_qc_json_metrics(pdf_files[0].stem)
+        m = load_qc_json_metrics(p_path.stem)
+        if m:
+            try:
+                s_val = float(m.get("sharpe", -999.0))
+                if s_val > champ_sharpe:
+                    champ_sharpe = s_val
+                    champ_pdf = p_path
+                    champ_metrics = m
+            except:
+                pass
+                
+    if not champ_metrics and pdf_files:
+        champ_pdf = pdf_files[0]
+        champ_metrics = load_qc_json_metrics(champ_pdf.stem)
         
-    if hero_metrics:
-        hero_df = hero_metrics.get("equity_curve")
+    if champ_metrics and champ_pdf:
+        hero_df = champ_metrics.get("equity_curve")
         if isinstance(hero_df, pd.DataFrame) and not hero_df.empty:
-            st.markdown("### All-Time Production Equity Trajectory")
+            st.markdown(f"### All-Time Production Equity Trajectory (`{champ_pdf.stem.upper()}` - Sharpe: {champ_sharpe})")
             hero_line = alt.Chart(hero_df.reset_index()).mark_line(
                 color='#00E676', strokeWidth=2
             ).encode(

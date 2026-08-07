@@ -30,25 +30,22 @@ def cached_read_file_bytes(file_path_str: str) -> bytes:
 
 @st.cache_data
 def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
-    """Fuzzy searches and parses QuantConnect result JSON files and calculates institutional trade stats."""
+    """Strictly parses QuantConnect result JSON files and calculates institutional trade stats per exact file stem."""
     reports_dir = Path(reports_dir_str)
     
-    clean_stem = pdf_stem.lower().replace(" ", "").replace("_", "")
-    for tag in ["isf", "oosf", "isp", "oosp", "is", "oos", "fail"]:
-        clean_stem = clean_stem.replace(tag, "")
-        
-    json_candidates = list(reports_dir.glob("*.json"))
-    matching_json = None
-    
-    for j_path in json_candidates:
-        j_clean = j_path.stem.lower().replace(" ", "").replace("_", "")
-        for tag in ["isf", "oosf", "isp", "oosp", "is", "oos", "fail"]:
-            j_clean = j_clean.replace(tag, "")
-            
-        if clean_stem in j_clean or j_clean in clean_stem:
-            matching_json = j_path
-            break
-            
+    # Strict matching based on exact pdf_stem
+    matching_json = reports_dir / f"{pdf_stem}.json"
+    if not matching_json.exists():
+        # Fuzzy fallback if spacing/case differs slightly
+        json_candidates = list(reports_dir.glob("*.json"))
+        matching_json = next((j for j in json_candidates if j.stem.lower().replace(" ", "").replace("_", "") == pdf_stem.lower().replace(" ", "").replace("_", "")), None)
+
+    matching_trades = reports_dir / f"{pdf_stem}_trades.csv"
+    if not matching_trades.exists():
+        csv_candidates = list(reports_dir.glob("*_trades.csv"))
+        clean_stem = pdf_stem.lower().replace(" ", "").replace("_", "")
+        matching_trades = next((c for c in csv_candidates if c.stem.lower().replace(" ", "").replace("_", "").replace("trades", "") == clean_stem), None)
+
     equity_df = pd.DataFrame()
     sharpe = "N/A"
     drawdown = "31.7%"
@@ -75,17 +72,7 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
             sharpe = stats.get("sharpeRatio") or stats.get("Sharpe Ratio", "N/A")
             drawdown = stats.get("drawdown") or stats.get("Drawdown", "31.7%")
         except Exception as e:
-            print(f"Error parsing JSON: {e}")
-
-    csv_candidates = list(reports_dir.glob("*_trades.csv"))
-    matching_trades = None
-    for c_path in csv_candidates:
-        c_clean = c_path.stem.lower().replace(" ", "").replace("_", "")
-        for tag in ["isf", "oosf", "isp", "oosp", "is", "oos", "fail"]:
-            c_clean = c_clean.replace(tag, "")
-        if clean_stem in c_clean or c_clean in clean_stem:
-            matching_trades = c_path
-            break
+            print(f"Error parsing JSON for {pdf_stem}: {e}")
 
     if matching_trades and matching_trades.exists():
         try:
@@ -129,7 +116,7 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
                     eq_vals.insert(0, base_cap)
                     equity_df = pd.DataFrame({"Equity": eq_vals})
         except Exception as e:
-            print(f"Error processing trades CSV: {e}")
+            print(f"Error processing trades CSV for {pdf_stem}: {e}")
 
     if equity_df.empty:
         equity_df = pd.DataFrame({"Equity": [1000000.0, 1000000.0 * (1 - 0.317)]})
