@@ -1,6 +1,35 @@
-# 📜 Alpha Flush Node - Engineering Changelog
+#  Alpha Flush Node - Master Engineering & Research Changelog
 
-All notable changes, infrastructure pivots, and architectural milestones for this project will be documented in this file.
+All system architecture pivots, UI upgrades, and chronological quantitative research hypotheses are logged below.
+
+---
+
+##  Quantitative Research Ledger (Alpha Experiments)
+
+### [v1.0.0-ALPHA] - 2026-08-06 14:30 EST (Active Experiment)
+- **Target Asset:** MNQ (Nasdaq E-mini Micro Futures)
+- **Core Hypothesis:** Implementing a Hull Moving Average (HMA) multi-timeframe slope filter combined with an Average True Range (ATR) expansion gate will filter out low-volume regular trading hours (RTH) chop. 
+- **Expected Outcome:** Lower overall trade frequency by ~40%, but significantly reduce maximum drawdown and push the Out-of-Sample (OOS) Sharpe ratio above 1.5.
+
+### [v0.1.0-BASELINE] - 2026-08-05 21:00 EST (Archived Experiment)
+- **Phase:** In-Sample Training (IS) [FAILED]
+- **Key Metrics Recorded:** Sharpe: -0.28 | Max Drawdown: 31.7% ($373,525) | Win Rate: 44.6% (520 Trades) | Profit Factor: 0.977
+- **Root Cause Analysis:** Naive Moving Average crossover suffered from severe over-trading during chop, resulting in negative expectancy.
+- **Pivot Action:** Abandon SMA logic. Proceed to v1.0 HMA + ATR volatility gating.
+
+---
+
+##  System Architecture & Infrastructure Changelog
+
+## [v2.1.0] - 2026-08-06 (The Modular Architecture Refactor)
+### Added
+- **Strategy Leaderboard & Comparison Engine:** Added an automated ranking table sorting all backtests by Sharpe Ratio, complete with a Reigning Champion vs. Challenger Delta metric.
+- **Dotted Baseline Rules:** Integrated the $1,000,000 starting capital reference line across all equity charts (Hero, Iterations, and Live Paper Trading).
+- **Pro Quant Suite Tabs:** Restructured iteration cards into 4 distinct tabs (`Equity Curve & Summary`, `Trade Analytics`, `Changelog`, and `Raw CSV Inspector`) to eliminate UI crowding.
+
+### Changed
+- **Codebase Modularization:** Refactored the monolithic `app.py` script into clean, professional backend metrics (`backend_metrics.py`) and UI component (`ui_components.py`) modules.
+- **Restored PDF Artifact Downloads:** Re-anchored full PDF report download buttons inside the changelog tabs with dynamic file size tracking.
 
 ---
 

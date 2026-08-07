@@ -148,3 +148,4 @@ Thumbs.db
 research/*.html
 *.log
 MAPPINGS.txt
+.venv

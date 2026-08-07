@@ -1,0 +1,20 @@
+[theme]
+# The primary accent color for widgets, sliders, tabs, and checkboxes
+primaryColor = "#00E676"
+
+# The background color of the main content area
+backgroundColor = "#0E1117"
+
+# The background color of the sidebar and cards
+secondaryBackgroundColor = "#1E222B"
+
+# The main body text color for readability
+textColor = "#E0E6ED"
+
+# The font family used throughout the user interface
+font = "sans serif"
+
+[server]
+# Optimizes browser rendering for large charts (Altair/DataFrames)
+enableCORS = false
+enableXsrfProtection = false
