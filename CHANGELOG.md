@@ -25,6 +25,22 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ##  System Architecture & Infrastructure Changelog
 
+## [v2.4.0] - 2026-08-07 (The Card-Swiper & Pro Quant Suite)
+### Added
+- **React-Like Card-Swiper Carousel (`app.py`):** Replaced vertical card stacking with a session-state-powered card deck featuring smooth `< Prev` and `Next >` arrow navigation to flip between In-Sample training and Out-of-Sample blind tests.
+- **Automated IS Lineage Stacking:** Configured iteration badges to dynamically preserve and display In-Sample training results alongside Out-of-Sample validation states.
+- **Enhanced Quantitative Metrics:** Added Sortino Ratio, Trade Expectancy ($ per trade), Recovery Factor, and Payoff Ratios to the 12-metric institutional quant grid.
+
+## [v2.3.0] - 2026-08-07 (The Pro Quant Suite & UI Polish)
+### Added
+- **Sortino & Payoff Ratio Engine:** Integrated downside-deviation risk calculations and trade Payoff Ratios into the metrics suite.
+- **Dynamic 12-Metric Grid:** Upgraded Streamlit UI cards into an institutional 3-row layout with custom CSS typography scaling and inline percentage breakdowns (Avg Win/Loss % and Max Drawdown dollar scale).
+- **Starting Capital Baselines:** Anchored all Altair equity charts with a $1,000,000 orange dashed starting capital rule.
+
+### Changed
+- **Streamlined Visuals:** Removed jarring multi-color line switches in favor of a clean, razor-sharp institutional green equity line.
+- **Component Scoping:** Fixed strict file-stem scoping in `backend_metrics.py` to prevent multi-iteration equity curve cross-contamination.
+
 ## [v2.2.0] - 2026-08-06 (The Pro Quant Suite Upgrade)
 ### Added
 - **Sortino Ratio Engine:** Implemented downside-deviation risk-adjusted return calculations alongside Sharpe Ratio, providing a fairer evaluation of trend-following outlier gains.
