@@ -4,12 +4,16 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ---
 
-### [v0.1.01-EOD] - 2026-08-06 15:00 EST (Active Experiment)
+### [v0.1.01-EOD] - 2026-08-07 15:00 EST (Archived Experiment)
 - **In-Sample Window:** 2020-01-01 to 2024-06-30 (Parameter Tuning)
 - **Out-of-Sample Window:** 2024-07-01 to 2026-06-30 (Blind Verification)
 - **Target Asset:** SP_500_E_MINI (ES)
 - **Pre-Execution Hypothesis:** Forcing an absolute End-of-Day liquidation between 3:45-3:49 PM EST to avoid overnight gaps will **substantially degrade performance**.
 - **Economic Rationale:** Trend-following models rely on multi-day momentum and overnight gap expansions. Forcing flat closes amputates fat-tail returns and increases cumulative intraday execution friction.
+- **Empirical Audit Results:**
+  - **In-Sample (Training):** Sharpe: 0.1 | CAGR: 4.1% | Max Drawdown: 15.1%
+  - **Out-of-Sample (Blind Test):** Sharpe: -0.8 | CAGR: -4.9% | Max Drawdown: 17.1%
+- **Post-Mortem Conclusion:** **Hypothesis Proven Correct.** Cutting positions flat every afternoon completely destroyed trend-following alpha. EOD liquidation rule abandoned.
 
 ### [v0.1.0-BASELINE] - 2026-08-05 21:00 EST (Archived Experiment)
 - **Phase:** In-Sample Training (IS) [FAILED]
@@ -20,6 +24,12 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 ---
 
 ##  System Architecture & Infrastructure Changelog
+
+## [v2.2.0] - 2026-08-06 (The Pro Quant Suite Upgrade)
+### Added
+- **Sortino Ratio Engine:** Implemented downside-deviation risk-adjusted return calculations alongside Sharpe Ratio, providing a fairer evaluation of trend-following outlier gains.
+- **Advanced Execution Metrics:** Added automated calculation for Trade Expectancy ($ per trade) and Recovery Factor (Net Profit / Max Drawdown).
+- **Institutional 12-Metric Grid:** Upgraded Streamlit UI metric cards into a 3-row pro grid featuring CSS-scaled typography and inline percentage breakdowns.
 
 ## [v2.1.0] - 2026-08-06 (The Modular Architecture Refactor)
 ### Added
