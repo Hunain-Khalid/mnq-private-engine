@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 import pandas as pd
 import streamlit as st
+import numpy as np
 
 @st.cache_data
 def get_cached_reports():
@@ -33,10 +34,8 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
     """Strictly parses QuantConnect result JSON files and calculates institutional trade stats per exact file stem."""
     reports_dir = Path(reports_dir_str)
     
-    # Strict matching based on exact pdf_stem
     matching_json = reports_dir / f"{pdf_stem}.json"
     if not matching_json.exists():
-        # Fuzzy fallback if spacing/case differs slightly
         json_candidates = list(reports_dir.glob("*.json"))
         matching_json = next((j for j in json_candidates if j.stem.lower().replace(" ", "").replace("_", "") == pdf_stem.lower().replace(" ", "").replace("_", "")), None)
 
@@ -72,7 +71,6 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
             sharpe = stats.get("sharpeRatio") or stats.get("Sharpe Ratio", "N/A")
             drawdown = stats.get("drawdown") or stats.get("Drawdown")
             
-            # 🛡️ ROBUST DRAWDOWN NORMALIZER (Converts decimals or numbers into clean percentages)
             if drawdown is not None:
                 try:
                     dd_float = float(str(drawdown).replace('%', '').strip())
@@ -89,7 +87,7 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
 
     if matching_trades and matching_trades.exists():
         try:
-            df_t = pd.read_csv(matching_trades)
+            df_t = pd.read_csv(matching_trades, low_memory=False)
             trades_count = len(df_t)
             
             pnl_col = next((col for col in df_t.columns if any(k in col.lower() for k in ['profit', 'net', 'pnl', 'p&l', 'return', 'gain'])), None)
@@ -151,3 +149,46 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
         "equity_curve": equity_df,
         "raw_trades": df_t
     }
+
+@st.cache_data
+def run_monte_carlo_simulation(raw_trades_df, num_simulations=1000, num_trades_to_project=100, initial_capital=1000000.0, ruin_threshold=0.8):
+    """Runs a bootstrap Monte Carlo simulation based on historical trade PnL distribution."""
+    if raw_trades_df is None or raw_trades_df.empty:
+        return None, 0.0
+        
+    pnl_col = next((col for col in raw_trades_df.columns if any(k in col.lower() for k in ['profit', 'net', 'pnl', 'p&l', 'return', 'gain'])), None)
+    if not pnl_col:
+        return None, 0.0
+        
+    pnl_series = pd.to_numeric(raw_trades_df[pnl_col].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce').dropna()
+    if len(pnl_series) < 5:
+        return None, 0.0
+        
+    pnl_array = pnl_series.values
+    sim_results = np.zeros((num_simulations, num_trades_to_project))
+    ruin_count = 0
+    
+    for i in range(num_simulations):
+        sampled_trades = np.random.choice(pnl_array, size=num_trades_to_project, replace=True)
+        equity_path = initial_capital + np.cumsum(sampled_trades)
+        sim_results[i, :] = equity_path
+        
+        peak = np.maximum.accumulate(equity_path)
+        drawdown = (peak - equity_path) / peak
+        if np.any(drawdown >= (1.0 - ruin_threshold)):
+            ruin_count += 1
+            
+    risk_of_ruin_pct = (ruin_count / num_simulations) * 100
+    
+    median_path = np.median(sim_results, axis=0)
+    p10_path = np.percentile(sim_results, 10, axis=0)
+    p90_path = np.percentile(sim_results, 90, axis=0)
+    
+    mc_df = pd.DataFrame({
+        "Trade_Index": range(num_trades_to_project),
+        "P10": p10_path,
+        "Median": median_path,
+        "P90": p90_path
+    })
+    
+    return mc_df, risk_of_ruin_pct

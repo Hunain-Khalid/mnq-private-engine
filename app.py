@@ -11,11 +11,15 @@ import altair as alt
 
 from ui_components import render_sidebar, render_pro_tabs
 from backend_metrics import get_cached_reports, load_qc_json_metrics, cached_read_markdown
+from ui_styles import inject_global_institutional_theme
 
 st.set_page_config(
     page_title="Alpha Flush Node | Quant Portfolio",
     layout="wide"
 )
+
+# 🌐 INJECT GLOBAL INSTITUTIONAL THEME
+inject_global_institutional_theme()
 
 page = render_sidebar()
 
@@ -52,12 +56,17 @@ if page == "Backtests (IS / OOS)":
         champ_pdf = pdf_files[0]
         champ_metrics = load_qc_json_metrics(champ_pdf.stem)
         
+    hero_start_date = "N/A"
+    hero_end_date = "N/A"
+    
     if champ_metrics and champ_pdf:
         hero_df = champ_metrics.get("equity_curve")
         if isinstance(hero_df, pd.DataFrame) and not hero_df.empty:
             hero_start_date = hero_df.index.min().strftime('%Y-%m-%d')
             hero_end_date = hero_df.index.max().strftime('%Y-%m-%d')
+            
             st.markdown(f"### All-Time Production Equity Trajectory (`{champ_pdf.stem.upper()}` - Sharpe: {champ_sharpe})")
+            
             hero_line = alt.Chart(hero_df.reset_index()).mark_line(
                 color='#00E676', strokeWidth=2
             ).encode(
@@ -72,7 +81,9 @@ if page == "Backtests (IS / OOS)":
             ).encode(y='y:Q')
             
             hero_chart = (hero_line + hero_rule).properties(height=200).interactive()
-            st.altair_chart(hero_chart, width='stretch')
+            
+            with st.container(border=True):
+                st.altair_chart(hero_chart, width='stretch')
 
     st.markdown(f"**Backtest Date Range:** `{hero_start_date}` ➔ `{hero_end_date}`")
     st.divider()
@@ -118,7 +129,6 @@ if page == "Backtests (IS / OOS)":
     if not pdf_files:
         st.info("No reports found yet. Add your QC PDFs, JSONs, and markdown logs to the reports/ folder.")
     else:
-        # Group reports by their base model name
         model_groups = {}
         for pdf_path in pdf_files:
             b_name = pdf_path.stem
@@ -131,13 +141,10 @@ if page == "Backtests (IS / OOS)":
                 model_groups[clean_key] = []
             model_groups[clean_key].append(pdf_path)
 
-        # 🎴 MODEL FAMILY SELECTOR
         selected_model = st.selectbox("📂 Select Strategy Model Family:", list(model_groups.keys()))
         
         if selected_model:
             model_reports = model_groups[selected_model]
-            
-            # Sort reports so In-Sample (IS) is always first (index 0), and Out-of-Sample (OOS) is second (index 1)
             model_reports = sorted(model_reports, key=lambda x: 1 if "oos" in x.stem.lower() else 0)
             
             state_key = f"slide_idx_{selected_model}"
@@ -147,11 +154,9 @@ if page == "Backtests (IS / OOS)":
             with st.container():
                 st.divider()
                 
-                # 🔄 REACT-LIKE CARD SWIPER HEADER WITH < > ARROWS
                 nav_col1, nav_col2, nav_col3 = st.columns([2.5, 1, 1])
                 
                 current_idx = st.session_state[state_key]
-                # Safeguard index boundaries
                 if current_idx >= len(model_reports):
                     current_idx = 0
                     st.session_state[state_key] = 0
@@ -178,7 +183,6 @@ if page == "Backtests (IS / OOS)":
                 base_name = current_pdf.stem
                 base_lower = base_name.lower()
                 
-                # Badge logic
                 if "oos" in base_lower:
                     is_phase = "IN-SAMPLE (Training)"
                     is_status = "PASSED (Optimized)"
@@ -219,7 +223,6 @@ if page == "Backtests (IS / OOS)":
                 reports_dir = Path("reports")
                 md_path = pdf_path.with_suffix(".md")
                 
-                # Bulletproof fuzzy matching for cloud deployment
                 clean_stem = base_name.lower().replace(" ", "").replace("_", "")
                 for tag in ["isf", "oosf", "isp", "oosp", "is", "oos", "fail"]:
                     clean_stem = clean_stem.replace(tag, "")
@@ -282,7 +285,9 @@ elif page == "Live / Paper Trading":
     
     st.caption("Dashed Line: Starting Paper Capital ($100,000)")
     paper_chart = (paper_line + paper_rule).properties(height=220).interactive()
-    st.altair_chart(paper_chart, width='stretch')
+    
+    with st.container(border=True):
+        st.altair_chart(paper_chart, width='stretch')
 
 # ==========================================
 # PAGE 3: ENGINEERING ARCHIVE
@@ -294,6 +299,7 @@ elif page == "Engineering Archive":
     changelog_path = Path("CHANGELOG.md")
     if changelog_path.exists():
         changelog_content = cached_read_markdown(str(changelog_path))
-        st.markdown(changelog_content)
+        with st.container(border=True):
+            st.markdown(changelog_content)
     else:
         st.info("Create a root CHANGELOG.md file to document your overarching engineering history.")
