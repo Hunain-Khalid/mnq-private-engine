@@ -75,7 +75,7 @@ def render_interactive_equity_chart(metrics, eq_df):
     win_cnt = metrics.get('winners', 0)
     loss_cnt = metrics.get('losers', 0)
     
-    # 1. PARSE RAW TRADES FIRST (So variables exist before math uses them!)
+    # 1. PARSE RAW TRADES FIRST
     raw_trades_df = metrics.get("raw_trades")
     avg_win_val = 0.0
     avg_loss_val = 0.0
@@ -94,7 +94,7 @@ def render_interactive_equity_chart(metrics, eq_df):
             clean_fees = pd.to_numeric(raw_trades_df[fee_col].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
             total_fees_val = clean_fees.sum()
 
-    # 2. NOW CALCULATE RATIOS & METRICS THAT DEPEND ON THOSE VARIABLES
+    # 2. CALCULATE RATIOS & METRICS
     max_dd_val = peak_val - trough_val
     max_dd_pct = (max_dd_val / peak_val) * 100 if peak_val > 0 else 0.0
     recovery_factor = abs(net_pnl / max_dd_val) if max_dd_val > 0 else 0.0
@@ -118,26 +118,22 @@ def render_interactive_equity_chart(metrics, eq_df):
     # ==========================================
     # 🏛️ 12-METRIC INSTITUTIONAL QUANT GRID
     # ==========================================
-    
-    # Row 1: Core Return & Risk Ratios (Sharpe, Sortino, Calmar, Profit Factor)
     r1_c1, r1_c2, r1_c3, r1_c4 = st.columns(4)
     r1_c1.metric("Sharpe Ratio", metrics.get("sharpe", "N/A"))
     r1_c2.metric("Sortino Ratio", f"{sortino_val:.2f}")
     r1_c3.metric("Calmar Ratio", f"{calmar_val:.2f}")
     r1_c4.metric("Profit Factor", metrics.get("profit_factor", "N/A"))
 
-    # Row 2: Trade Execution & Size (Total Trades, Avg Win, Avg Loss, Payoff Ratio)
     r2_c1, r2_c2, r2_c3, r2_c4 = st.columns(4)
     r2_c1.metric("Total Trades", trades_count)
     r2_c2.metric("Avg Win", f"${avg_win_val:,.2f} (+{avg_win_pct:.2f}%)" if win_cnt > 0 else "$0.00")
     r2_c3.metric("Avg Loss", f"-${avg_loss_val:,.2f} (-{avg_loss_pct:.2f}%)" if loss_cnt > 0 else "$0.00")
     r2_c4.metric("Payoff Ratio (Win/Loss)", f"{payoff_ratio:.2f}x")
 
-    # Row 3: Portfolio Capital, Fees & Risk Metrics (Net P&L, Total Fees, Max Drawdown, Recovery Factor)
     r3_c1, r3_c2, r3_c3, r3_c4 = st.columns(4)
     r3_c1.metric("Net P&L", f"${net_pnl:,.0f}", delta=f"{(net_pnl/start_val)*100:.1f}%")
     r3_c2.metric("Total Fees Paid", f"${total_fees_val:,.2f}")
-    r3_c3.metric("Max Drawdown", f"{max_dd_pct:.1f}% (-${max_dd_val:,.0f})")
+    r3_c3.metric("Max Drawdown", f"{raw_max_dd_str} (-${max_dd_val:,.0f})")
     r3_c4.metric("Recovery Factor", f"{recovery_factor:.2f}x")
 
 def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matching_orders):
