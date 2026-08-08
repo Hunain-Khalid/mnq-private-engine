@@ -25,6 +25,14 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ##  System Architecture & Infrastructure Changelog
 
+## [v2.5.0] - 2026-08-07 (Cloud Deployment & Robust File Scoping)
+### Added
+- **ISO Date Formatting on Altair Charts:** Standardized equity curve tooltips and timelines to clean `YYYY-MM-DD` ISO formatting.
+- **Granular PnL Buckets:** Upgraded trade returns distribution histograms to render higher-resolution binning for deep-dive performance analysis.
+
+### Fixed
+- **Cloud Git Tracking & Fuzzy-Matching:** Removed `reports/` from `.gitignore` and upgraded file-locator loops with strict fuzzy-matching to ensure 100% artifact synchronization between local environments and Streamlit Community Cloud.
+
 ## [v2.4.0] - 2026-08-07 (The Card-Swiper & Pro Quant Suite)
 ### Added
 - **React-Like Card-Swiper Carousel (`app.py`):** Replaced vertical card stacking with a session-state-powered card deck featuring smooth `< Prev` and `Next >` arrow navigation to flip between In-Sample training and Out-of-Sample blind tests.
