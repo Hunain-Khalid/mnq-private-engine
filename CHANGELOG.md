@@ -26,6 +26,16 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ##  System Architecture & Infrastructure Changelog
 
+## [v2.7.0] - 2026-08-08 (The Advanced Tail-Risk & Spaghetti Variance Update)
+### Added
+- **Extended Monte Carlo Tail Bounds (P5 & P95):** Upgraded the bootstrap simulation engine to map extreme tail risk (P5 deep red and P95 vivid green) alongside P10, Median, and P90 confidence boundaries.
+- **Spaghetti Variance Overlay (`ui_components.py`):** Added 70 semi-transparent individual equity trajectory paths rendered in the background of the Monte Carlo chart to visually capture trade sequence path dependency.
+- **Drawdown Distribution Histogram:** Integrated a secondary frequency histogram positioned directly underneath the Monte Carlo equity chart, tracking max drawdowns across all simulations to evaluate prop-firm risk limits.
+
+### Optimized
+- **Monte Carlo Opacity & Contrast:** Fine-tuned spaghetti path opacity (`0.5`) and confidence band stroke weight (`2.2px` at `0.85` opacity) for optimal Bloomberg-style terminal readability.
+- **Tail-Risk Metric Cards:** Extended the dynamic red/green institutional metric styling to Monte Carlo summary outputs (Projected Median Ending PnL and Risk of Ruin).
+
 ## [v2.6.0] - 2026-08-08 (The Institutional Terminal UI & Dynamic Risk Polish)
 ### Added
 - **4x5 Institutional Quant Grid (20 Metrics):** Expanded the risk metric matrix to 20 core institutional metrics, incorporating System Quality Number (SQN), Ulcer Index, Trade Expectancy ($), MAE/MFE averages, and granular win/loss breakdowns.

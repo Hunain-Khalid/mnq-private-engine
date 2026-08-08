@@ -48,9 +48,9 @@ def institutional_metric(col, label, value, delta=None, is_positive=True):
 
 @st.fragment
 def render_monte_carlo_fragment(metrics, base_name):
-    """Isolated Monte Carlo fragment so dragging sliders doesn't trigger full-page reloads."""
-    st.markdown("### 🎲 Monte Carlo Stress Test & Risk of Ruin")
-    st.markdown("Bootstrap simulation resampling historical trade distribution across forward paths to stress-test tail risk and prop-firm drawdown limits.")
+    """Isolated Monte Carlo fragment with spaghetti paths, P5-P95 bands, and drawdown histogram."""
+    st.markdown("### Advanced Monte Carlo Stress Test & Tail Risk")
+    st.markdown("Bootstrap simulation with P5/P95 tail bounds, individual path variance (spaghetti plots), and max drawdown distribution frequency.")
     
     raw_df = metrics.get("raw_trades")
     if isinstance(raw_df, pd.DataFrame) and not raw_df.empty:
@@ -60,12 +60,11 @@ def render_monte_carlo_fragment(metrics, base_name):
         with col_s2:
             horizon = st.slider("Forward Trade Horizon", 50, 500, 100, step=50, key=f"horiz_{base_name}")
         
-        mc_df, ruin_prob = run_monte_carlo_simulation(raw_df, num_simulations=num_sims, num_trades_to_project=horizon)
+        mc_df, ruin_prob, spaghetti_df, max_drawdowns = run_monte_carlo_simulation(raw_df, num_simulations=num_sims, num_trades_to_project=horizon)
         
         if mc_df is not None:
             col_m1, col_m2 = st.columns(2)
             
-            # 🛡️ Risk of Ruin Metric Card (Green if safe, Red if high risk)
             ruin_safe = ruin_prob < 5.0
             institutional_metric(
                 col_m1, 
@@ -75,7 +74,6 @@ def render_monte_carlo_fragment(metrics, base_name):
                 is_positive=ruin_safe
             )
             
-            # 📈 Projected Median PnL Metric Card (Dynamic Red/Green based on sign)
             median_pnl_val = mc_df['Median'].iloc[-1] - 1000000.0
             institutional_metric(
                 col_m2, 
@@ -84,16 +82,41 @@ def render_monte_carlo_fragment(metrics, base_name):
                 is_positive=(median_pnl_val >= 0)
             )
             
-            melted_mc = mc_df.melt('Trade_Index', var_name='Percentile', value_name='Equity')
+            # 1. SPAGHETTI PLOT OVERLAY + P5/P10/MEDIAN/P90/P95 BANDS
+            spaghetti_layer = alt.Chart(spaghetti_df).mark_line(color='#334155', strokeWidth=1.0, opacity=0.5).encode(
+                x='Trade_Index:Q',
+                y='Equity:Q',
+                detail='Simulation:N'
+            )
             
-            mc_chart = alt.Chart(melted_mc).mark_line().encode(
+            melted_mc = mc_df.melt('Trade_Index', var_name='Percentile', value_name='Equity')
+            bands_layer = alt.Chart(melted_mc).mark_line(strokeWidth=2).encode(
                 x=alt.X('Trade_Index:Q', title='Simulated Trade Index'),
                 y=alt.Y('Equity:Q', scale=alt.Scale(zero=False), title='Projected Equity ($)'),
-                color=alt.Color('Percentile:N', scale=alt.Scale(domain=['P10', 'Median', 'P90'], range=['#FF5252', '#FFA726', '#00E676']))
-            ).properties(height=300).interactive()
+                color=alt.Color('Percentile:N', scale=alt.Scale(
+                    domain=['P5', 'P10', 'Median', 'P90', 'P95'], 
+                    range=['#FF1744', '#FF5252', '#FFA726', '#00E676', '#00C853']
+                ))
+            )
+            
+            combined_chart = (spaghetti_layer + bands_layer).properties(height=320).interactive()
+            
+            st.markdown("##### Monte Carlo Equity Paths (Spaghetti Variance + P5-P95 Tail Bounds)")
+            with st.container(border=True):
+                st.altair_chart(combined_chart, width='stretch')
+                
+            # 2. DRAWDOWN DISTRIBUTION HISTOGRAM DIRECTLY UNDERNEATH
+            st.markdown("##### Maximum Drawdown Distribution Across Simulations")
+            dd_df = pd.DataFrame({"Max_Drawdown_Pct": max_drawdowns})
+            
+            dd_hist = alt.Chart(dd_df).mark_bar(color='#FF5252', opacity=0.8).encode(
+                x=alt.X('Max_Drawdown_Pct:Q', bin=alt.Bin(maxbins=30), title='Max Drawdown (%)'),
+                y=alt.Y('count()', title='Frequency of Simulations'),
+                tooltip=['count()']
+            ).properties(height=200).interactive()
             
             with st.container(border=True):
-                st.altair_chart(mc_chart, width='stretch')
+                st.altair_chart(dd_hist, width='stretch')
         else:
             st.warning("Insufficient trade data to run Monte Carlo simulation.")
     else:
