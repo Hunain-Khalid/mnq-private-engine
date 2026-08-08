@@ -195,7 +195,7 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
                     )
                     
                     hist_chart = alt.Chart(chart_df).mark_bar().encode(
-                        x=alt.X('Clean_PnL:Q', bin=alt.Bin(maxbins=31), title='Trade P&L ($)'),
+                        x=alt.X('Clean_PnL:Q', bin=alt.Bin(maxbins=29), title='Trade P&L ($)'),
                         y=alt.Y('count()', title='Number of Trades'),
                         color=alt.Color(
                             'Outcome:N', 

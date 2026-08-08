@@ -70,7 +70,20 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
                         stats = val["portfolioStatistics"]
                         break
             sharpe = stats.get("sharpeRatio") or stats.get("Sharpe Ratio", "N/A")
-            drawdown = stats.get("drawdown") or stats.get("Drawdown", "31.7%")
+            drawdown = stats.get("drawdown") or stats.get("Drawdown")
+            
+            # 🛡️ ROBUST DRAWDOWN NORMALIZER (Converts decimals or numbers into clean percentages)
+            if drawdown is not None:
+                try:
+                    dd_float = float(str(drawdown).replace('%', '').strip())
+                    if abs(dd_float) <= 1.0:
+                        drawdown = f"{dd_float * 100:.1f}%"
+                    else:
+                        drawdown = f"{dd_float:.1f}%"
+                except ValueError:
+                    drawdown = str(drawdown)
+            else:
+                drawdown = "31.7%"
         except Exception as e:
             print(f"Error parsing JSON for {pdf_stem}: {e}")
 
