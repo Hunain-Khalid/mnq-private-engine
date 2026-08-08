@@ -55,6 +55,8 @@ if page == "Backtests (IS / OOS)":
     if champ_metrics and champ_pdf:
         hero_df = champ_metrics.get("equity_curve")
         if isinstance(hero_df, pd.DataFrame) and not hero_df.empty:
+            hero_start_date = hero_df.index.min().strftime('%Y-%m-%d')
+            hero_end_date = hero_df.index.max().strftime('%Y-%m-%d')
             st.markdown(f"### All-Time Production Equity Trajectory (`{champ_pdf.stem.upper()}` - Sharpe: {champ_sharpe})")
             hero_line = alt.Chart(hero_df.reset_index()).mark_line(
                 color='#00E676', strokeWidth=2
@@ -72,6 +74,7 @@ if page == "Backtests (IS / OOS)":
             hero_chart = (hero_line + hero_rule).properties(height=200).interactive()
             st.altair_chart(hero_chart, width='stretch')
 
+    st.markdown(f"**Backtest Date Range:** `{hero_start_date}` ➔ `{hero_end_date}`")
     st.divider()
 
     st.subheader("Strategy Leaderboard & Version Comparison")

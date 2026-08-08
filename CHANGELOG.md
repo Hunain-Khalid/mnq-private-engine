@@ -14,6 +14,7 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
   - **In-Sample (Training):** Sharpe: 0.1 | CAGR: 4.1% | Max Drawdown: 15.1%
   - **Out-of-Sample (Blind Test):** Sharpe: -0.8 | CAGR: -4.9% | Max Drawdown: 17.1%
 - **Post-Mortem Conclusion:** **Hypothesis Proven Correct.** Cutting positions flat every afternoon completely destroyed trend-following alpha. EOD liquidation rule abandoned.
+**Strategic Pivot for Prop Firm Compliance:** For live prop firm evaluations (Apex/Topstep), sacrificing some raw momentum via EOD flattening is an acceptable trade-off to survive brutal trailing max drawdown rules and overnight gap risk.
 
 ### [v0.1.0-BASELINE] - 2026-08-05 21:00 EST (Archived Experiment)
 - **Phase:** In-Sample Training (IS) [FAILED]
@@ -25,6 +26,16 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ##  System Architecture & Infrastructure Changelog
 
+## [v2.5.1] - 2026-08-07 (The Pro Dashboard & ISO Compliance Polish)
+### Added
+- **Dynamic Hero Date Ranges:** Automatically extracts and displays the exact temporal boundaries (`YYYY-MM-DD` start/end dates) directly in the reigning champion equity chart header.
+
+### Fixed
+- **Robust Drawdown Percentage Normalization (`backend_metrics.py`):** Added dynamic type-checking to convert raw QuantConnect decimal drawdowns (e.g., `0.317`) into pristine percentage strings (`31.7%`) across all metric cards.
+- **Strict Artifact Scoping:** Finalized backend fuzzy-matching to guarantee zero cross-contamination of equity curves and CSV logs between different model iterations.
+
+---
+
 ## [v2.5.0] - 2026-08-07 (Cloud Deployment & Robust File Scoping)
 ### Added
 - **ISO Date Formatting on Altair Charts:** Standardized equity curve tooltips and timelines to clean `YYYY-MM-DD` ISO formatting.
@@ -33,11 +44,15 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 ### Fixed
 - **Cloud Git Tracking & Fuzzy-Matching:** Removed `reports/` from `.gitignore` and upgraded file-locator loops with strict fuzzy-matching to ensure 100% artifact synchronization between local environments and Streamlit Community Cloud.
 
+---
+
 ## [v2.4.0] - 2026-08-07 (The Card-Swiper & Pro Quant Suite)
 ### Added
 - **React-Like Card-Swiper Carousel (`app.py`):** Replaced vertical card stacking with a session-state-powered card deck featuring smooth `< Prev` and `Next >` arrow navigation to flip between In-Sample training and Out-of-Sample blind tests.
 - **Automated IS Lineage Stacking:** Configured iteration badges to dynamically preserve and display In-Sample training results alongside Out-of-Sample validation states.
 - **Enhanced Quantitative Metrics:** Added Sortino Ratio, Trade Expectancy ($ per trade), Recovery Factor, and Payoff Ratios to the 12-metric institutional quant grid.
+
+---
 
 ## [v2.3.0] - 2026-08-07 (The Pro Quant Suite & UI Polish)
 ### Added
@@ -49,11 +64,15 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 - **Streamlined Visuals:** Removed jarring multi-color line switches in favor of a clean, razor-sharp institutional green equity line.
 - **Component Scoping:** Fixed strict file-stem scoping in `backend_metrics.py` to prevent multi-iteration equity curve cross-contamination.
 
+---
+
 ## [v2.2.0] - 2026-08-06 (The Pro Quant Suite Upgrade)
 ### Added
 - **Sortino Ratio Engine:** Implemented downside-deviation risk-adjusted return calculations alongside Sharpe Ratio, providing a fairer evaluation of trend-following outlier gains.
 - **Advanced Execution Metrics:** Added automated calculation for Trade Expectancy ($ per trade) and Recovery Factor (Net Profit / Max Drawdown).
 - **Institutional 12-Metric Grid:** Upgraded Streamlit UI metric cards into a 3-row pro grid featuring CSS-scaled typography and inline percentage breakdowns.
+
+---
 
 ## [v2.1.0] - 2026-08-06 (The Modular Architecture Refactor)
 ### Added
