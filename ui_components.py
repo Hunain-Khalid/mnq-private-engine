@@ -82,15 +82,15 @@ def render_monte_carlo_fragment(metrics, base_name):
                 is_positive=(median_pnl_val >= 0)
             )
             
-            # 1. SPAGHETTI PLOT OVERLAY + P5/P10/MEDIAN/P90/P95 BANDS
-            spaghetti_layer = alt.Chart(spaghetti_df).mark_line(color='#334155', strokeWidth=1.0, opacity=0.5).encode(
+            # 1. SPAGHETTI PLOT OVERLAY (70 paths) + P5/P10/MEDIAN/P90/P95 BANDS
+            spaghetti_layer = alt.Chart(spaghetti_df).mark_line(color='#475569', strokeWidth=1.0, opacity=0.5).encode(
                 x='Trade_Index:Q',
                 y='Equity:Q',
                 detail='Simulation:N'
             )
             
             melted_mc = mc_df.melt('Trade_Index', var_name='Percentile', value_name='Equity')
-            bands_layer = alt.Chart(melted_mc).mark_line(strokeWidth=2).encode(
+            bands_layer = alt.Chart(melted_mc).mark_line(strokeWidth=2.2, opacity=0.85).encode(
                 x=alt.X('Trade_Index:Q', title='Simulated Trade Index'),
                 y=alt.Y('Equity:Q', scale=alt.Scale(zero=False), title='Projected Equity ($)'),
                 color=alt.Color('Percentile:N', scale=alt.Scale(
@@ -121,7 +121,7 @@ def render_monte_carlo_fragment(metrics, base_name):
             st.warning("Insufficient trade data to run Monte Carlo simulation.")
     else:
         st.info("No raw trades available for this model to generate Monte Carlo simulations.")
-
+        
 @st.fragment
 def render_interactive_equity_chart(metrics, eq_df):
     """Renders institutional equity curve, starting baseline, and the 4x5 (20-metric) Institutional Grid."""
