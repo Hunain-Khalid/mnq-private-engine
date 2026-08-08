@@ -152,20 +152,21 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
 
 @st.cache_data
 def run_monte_carlo_simulation(raw_trades_df, num_simulations=1000, num_trades_to_project=100, initial_capital=1000000.0, ruin_threshold=0.8):
-    """Runs a bootstrap Monte Carlo simulation based on historical trade PnL distribution."""
+    """Runs an advanced bootstrap Monte Carlo simulation with P5/P95, spaghetti paths, and max drawdowns."""
     if raw_trades_df is None or raw_trades_df.empty:
-        return None, 0.0
+        return None, 0.0, None, None
         
     pnl_col = next((col for col in raw_trades_df.columns if any(k in col.lower() for k in ['profit', 'net', 'pnl', 'p&l', 'return', 'gain'])), None)
     if not pnl_col:
-        return None, 0.0
+        return None, 0.0, None, None
         
     pnl_series = pd.to_numeric(raw_trades_df[pnl_col].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce').dropna()
     if len(pnl_series) < 5:
-        return None, 0.0
+        return None, 0.0, None, None
         
     pnl_array = pnl_series.values
     sim_results = np.zeros((num_simulations, num_trades_to_project))
+    max_drawdowns = np.zeros(num_simulations)
     ruin_count = 0
     
     for i in range(num_simulations):
@@ -174,21 +175,36 @@ def run_monte_carlo_simulation(raw_trades_df, num_simulations=1000, num_trades_t
         sim_results[i, :] = equity_path
         
         peak = np.maximum.accumulate(equity_path)
-        drawdown = (peak - equity_path) / peak
-        if np.any(drawdown >= (1.0 - ruin_threshold)):
+        drawdown_path = (peak - equity_path) / peak
+        max_drawdowns[i] = np.max(drawdown_path) * 100
+        
+        if np.any(drawdown_path >= (1.0 - ruin_threshold)):
             ruin_count += 1
             
     risk_of_ruin_pct = (ruin_count / num_simulations) * 100
     
+    # Percentiles for confidence bands
     median_path = np.median(sim_results, axis=0)
+    p5_path = np.percentile(sim_results, 5, axis=0)
     p10_path = np.percentile(sim_results, 10, axis=0)
     p90_path = np.percentile(sim_results, 90, axis=0)
+    p95_path = np.percentile(sim_results, 95, axis=0)
     
     mc_df = pd.DataFrame({
         "Trade_Index": range(num_trades_to_project),
+        "P5": p5_path,
         "P10": p10_path,
         "Median": median_path,
-        "P90": p90_path
+        "P90": p90_path,
+        "P95": p95_path
     })
     
-    return mc_df, risk_of_ruin_pct
+    # Extract a random sample of 50 paths for spaghetti lines
+    spaghetti_sample_idx = np.random.choice(num_simulations, size=min(50, num_simulations), replace=False)
+    spaghetti_data = []
+    for sim_id in spaghetti_sample_idx:
+        for t_idx, val in enumerate(sim_results[sim_id]):
+            spaghetti_data.append({"Simulation": sim_id, "Trade_Index": t_idx, "Equity": val})
+    spaghetti_df = pd.DataFrame(spaghetti_data)
+    
+    return mc_df, risk_of_ruin_pct, spaghetti_df, max_drawdowns
