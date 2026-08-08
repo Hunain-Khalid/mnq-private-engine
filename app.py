@@ -214,9 +214,30 @@ if page == "Backtests (IS / OOS)":
                 st.markdown(badge_html, unsafe_allow_html=True)
 
                 reports_dir = Path("reports")
-                md_path = current_pdf.with_suffix(".md")
-                matching_trades = reports_dir / f"{base_name}_trades.csv"
-                matching_orders = reports_dir / f"{base_name}_orders.csv"
+                md_path = pdf_path.with_suffix(".md")
+                
+                # Bulletproof fuzzy matching for cloud deployment
+                clean_stem = base_name.lower().replace(" ", "").replace("_", "")
+                for tag in ["isf", "oosf", "isp", "oosp", "is", "oos", "fail"]:
+                    clean_stem = clean_stem.replace(tag, "")
+
+                matching_trades = None
+                for c_path in reports_dir.glob("*_trades.csv"):
+                    c_clean = c_path.stem.lower().replace(" ", "").replace("_", "")
+                    for tag in ["isf", "oosf", "isp", "oosp", "is", "oos", "fail"]:
+                        c_clean = c_clean.replace(tag, "")
+                    if clean_stem in c_clean or c_clean in clean_stem or base_name.lower() in c_path.stem.lower():
+                        matching_trades = c_path
+                        break
+
+                matching_orders = None
+                for o_path in reports_dir.glob("*_orders.csv"):
+                    o_clean = o_path.stem.lower().replace(" ", "").replace("_", "")
+                    for tag in ["isf", "oosf", "isp", "oosp", "is", "oos", "fail"]:
+                        o_clean = o_clean.replace(tag, "")
+                    if clean_stem in o_clean or o_clean in clean_stem or base_name.lower() in o_path.stem.lower():
+                        matching_orders = o_path
+                        break
 
                 metrics = load_qc_json_metrics(base_name)
                 if metrics:
