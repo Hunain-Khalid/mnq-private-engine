@@ -2,10 +2,12 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 import numpy as np
-from backend_metrics import cached_read_markdown, cached_read_file_bytes
+from backend_metrics import cached_read_markdown, cached_read_file_bytes, run_monte_carlo_simulation
+from ui_styles import inject_global_institutional_theme
 
 def render_sidebar():
     """Renders the standard system sidebar configuration and returns selected page."""
+    inject_global_institutional_theme()
     st.sidebar.title("Alpha Flush Node")
     page = st.sidebar.radio(
         "Navigation", 
@@ -22,25 +24,87 @@ def render_sidebar():
     """)
     return page
 
+def institutional_metric(col, label, value, delta=None, is_positive=True):
+    """Renders a metric card with explicit green or red institutional styling based on value sign."""
+    border_color = "#00E676" if is_positive else "#FF5252"
+    bg_color = "#121C24" if is_positive else "#2A1215"
+    text_color = "#FFFFFF" if is_positive else "#FF5252"
+    
+    col.markdown(f"""
+        <div style="
+            background-color: {bg_color};
+            border: 1px solid #334155;
+            border-left: 4px solid {border_color};
+            padding: 14px 18px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            margin-bottom: 10px;
+        ">
+            <div style="font-size: 12px; color: #94A3B8; margin-bottom: 4px;">{label}</div>
+            <div style="font-size: 20px; font-weight: 600; color: {text_color};">{value}</div>
+            {f'<div style="font-size: 12px; margin-top: 4px; color: {border_color};">{delta}</div>' if delta else ''}
+        </div>
+    """, unsafe_allow_html=True)
+
+@st.fragment
+def render_monte_carlo_fragment(metrics, base_name):
+    """Isolated Monte Carlo fragment so dragging sliders doesn't trigger full-page reloads."""
+    st.markdown("### 🎲 Monte Carlo Stress Test & Risk of Ruin")
+    st.markdown("Bootstrap simulation resampling historical trade distribution across forward paths to stress-test tail risk and prop-firm drawdown limits.")
+    
+    raw_df = metrics.get("raw_trades")
+    if isinstance(raw_df, pd.DataFrame) and not raw_df.empty:
+        col_s1, col_s2 = st.columns(2)
+        with col_s1:
+            num_sims = st.slider("Number of Simulations", 100, 10000, 1000, step=100, key=f"sims_{base_name}")
+        with col_s2:
+            horizon = st.slider("Forward Trade Horizon", 50, 500, 100, step=50, key=f"horiz_{base_name}")
+        
+        mc_df, ruin_prob = run_monte_carlo_simulation(raw_df, num_simulations=num_sims, num_trades_to_project=horizon)
+        
+        if mc_df is not None:
+            col_m1, col_m2 = st.columns(2)
+            
+            # 🛡️ Risk of Ruin Metric Card (Green if safe, Red if high risk)
+            ruin_safe = ruin_prob < 5.0
+            institutional_metric(
+                col_m1, 
+                "Estimated Risk of Ruin (>20% DD)", 
+                f"{ruin_prob:.2f}%", 
+                delta="Prop Firm Safe" if ruin_safe else "High Risk", 
+                is_positive=ruin_safe
+            )
+            
+            # 📈 Projected Median PnL Metric Card (Dynamic Red/Green based on sign)
+            median_pnl_val = mc_df['Median'].iloc[-1] - 1000000.0
+            institutional_metric(
+                col_m2, 
+                "Projected Median Ending PnL", 
+                f"${median_pnl_val:,.0f}", 
+                is_positive=(median_pnl_val >= 0)
+            )
+            
+            melted_mc = mc_df.melt('Trade_Index', var_name='Percentile', value_name='Equity')
+            
+            mc_chart = alt.Chart(melted_mc).mark_line().encode(
+                x=alt.X('Trade_Index:Q', title='Simulated Trade Index'),
+                y=alt.Y('Equity:Q', scale=alt.Scale(zero=False), title='Projected Equity ($)'),
+                color=alt.Color('Percentile:N', scale=alt.Scale(domain=['P10', 'Median', 'P90'], range=['#FF5252', '#FFA726', '#00E676']))
+            ).properties(height=300).interactive()
+            
+            with st.container(border=True):
+                st.altair_chart(mc_chart, width='stretch')
+        else:
+            st.warning("Insufficient trade data to run Monte Carlo simulation.")
+    else:
+        st.info("No raw trades available for this model to generate Monte Carlo simulations.")
+
 @st.fragment
 def render_interactive_equity_chart(metrics, eq_df):
-    """Renders the clean single-color institutional equity curve, starting equity baseline, and 12-metric grid."""
-      # Extract date range for display
+    """Renders institutional equity curve, starting baseline, and the 4x5 (20-metric) Institutional Grid."""
     start_date_str = eq_df.index.min().strftime('%Y-%m-%d')
     end_date_str = eq_df.index.max().strftime('%Y-%m-%d')
-    
     st.markdown(f"**Backtest Date Range:** `{start_date_str}` ➔ `{end_date_str}`")
-
-    st.markdown("""
-        <style>
-            [data-testid="stMetricValue"] {
-                font-size: 20px !important;
-            }
-            [data-testid="stMetricLabel"] {
-                font-size: 12px !important;
-            }
-        </style>
-    """, unsafe_allow_html=True)
 
     start_cap_val = eq_df['Equity'].iloc[0]
     
@@ -58,7 +122,9 @@ def render_interactive_equity_chart(metrics, eq_df):
     
     chart = (line + baseline_rule).properties(height=220).interactive()
     st.caption("Dashed Line: Starting Equity Baseline ($1,000,000)")
-    st.altair_chart(chart, width='stretch')
+    
+    with st.container(border=True):
+        st.altair_chart(chart, width='stretch')
 
     eq_series = eq_df['Equity']
     start_val = eq_series.iloc[0]
@@ -68,7 +134,6 @@ def render_interactive_equity_chart(metrics, eq_df):
     net_pnl = end_val - start_val
     trades_count = metrics.get('total_trades', 0)
     
-    # 🕒 PROGRAMMATIC YEARS CALCULATION
     try:
         start_date = eq_df.index[0]
         end_date = eq_df.index[-1]
@@ -80,7 +145,6 @@ def render_interactive_equity_chart(metrics, eq_df):
     win_cnt = metrics.get('winners', 0)
     loss_cnt = metrics.get('losers', 0)
     
-    # 1. PARSE RAW TRADES FIRST
     raw_trades_df = metrics.get("raw_trades")
     avg_win_val = 0.0
     avg_loss_val = 0.0
@@ -99,9 +163,7 @@ def render_interactive_equity_chart(metrics, eq_df):
             clean_fees = pd.to_numeric(raw_trades_df[fee_col].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
             total_fees_val = clean_fees.sum()
 
-    # 2. CALCULATE RATIOS & METRICS
     max_dd_val = peak_val - trough_val
-    max_dd_pct = (max_dd_val / peak_val) * 100 if peak_val > 0 else 0.0
     recovery_factor = abs(net_pnl / max_dd_val) if max_dd_val > 0 else 0.0
     expectancy_val = net_pnl / trades_count if trades_count > 0 else 0.0
     payoff_ratio = (avg_win_val / avg_loss_val) if avg_loss_val > 0 else 0.0
@@ -120,35 +182,60 @@ def render_interactive_equity_chart(metrics, eq_df):
     avg_loss_pct = (avg_loss_val / start_val) * 100 if start_val > 0 else 0.0
     raw_max_dd_str = metrics.get("max_drawdown", "31.7%")
 
-    # ==========================================
-    # 🏛️ 12-METRIC INSTITUTIONAL QUANT GRID
-    # ==========================================
-    r1_c1, r1_c2, r1_c3, r1_c4 = st.columns(4)
-    r1_c1.metric("Sharpe Ratio", metrics.get("sharpe", "N/A"))
-    r1_c2.metric("Sortino Ratio", f"{sortino_val:.2f}")
-    r1_c3.metric("Calmar Ratio", f"{calmar_val:.2f}")
-    r1_c4.metric("Profit Factor", metrics.get("profit_factor", "N/A"))
+    if isinstance(raw_trades_df, pd.DataFrame) and not raw_trades_df.empty and pnl_col:
+        pnl_series = pd.to_numeric(raw_trades_df[pnl_col].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce').dropna()
+        sqn_val = (pnl_series.mean() / pnl_series.std()) * np.sqrt(len(pnl_series)) if len(pnl_series) > 1 and pnl_series.std() > 0 else 0.0
+    else:
+        sqn_val = 0.0
 
-    r2_c1, r2_c2, r2_c3, r2_c4 = st.columns(4)
-    r2_c1.metric("Total Trades", trades_count)
-    r2_c2.metric("Avg Win", f"${avg_win_val:,.2f} (+{avg_win_pct:.2f}%)" if win_cnt > 0 else "$0.00")
-    r2_c3.metric("Avg Loss", f"-${avg_loss_val:,.2f} (-{avg_loss_pct:.2f}%)" if loss_cnt > 0 else "$0.00")
-    r2_c4.metric("Payoff Ratio (Win/Loss)", f"{payoff_ratio:.2f}x")
+    cum_max = eq_series.cummax()
+    drawdowns_pct = (eq_series - cum_max) / cum_max
+    ulcer_index = np.sqrt(np.mean(drawdowns_pct ** 2)) * 100
 
-    r3_c1, r3_c2, r3_c3, r3_c4 = st.columns(4)
-    r3_c1.metric("Net P&L", f"${net_pnl:,.0f}", delta=f"{(net_pnl/start_val)*100:.1f}%")
-    r3_c2.metric("Total Fees Paid", f"${total_fees_val:,.2f}")
-    r3_c3.metric("Max Drawdown", f"{raw_max_dd_str} (-${max_dd_val:,.0f})")
-    r3_c4.metric("Recovery Factor", f"{recovery_factor:.2f}x")
+    mae_col = next((col for col in raw_trades_df.columns if 'mae' in col.lower()), None) if isinstance(raw_trades_df, pd.DataFrame) else None
+    mfe_col = next((col for col in raw_trades_df.columns if 'mfe' in col.lower()), None) if isinstance(raw_trades_df, pd.DataFrame) else None
+    avg_mae = f"${raw_trades_df[mae_col].mean():,.2f}" if mae_col and not raw_trades_df.empty else "N/A"
+    avg_mfe = f"${raw_trades_df[mfe_col].mean():,.2f}" if mfe_col and not raw_trades_df.empty else "N/A"
+
+    # ==========================================
+    # 🏛️ 4x5 INSTITUTIONAL QUANT GRID (20 METRICS)
+    # ==========================================
+    r1_c1, r1_c2, r1_c3, r1_c4, r1_c5 = st.columns(5)
+    institutional_metric(r1_c1, "Sharpe Ratio", metrics.get("sharpe", "N/A"), is_positive=float(metrics.get("sharpe", 0) or 0) >= 0)
+    institutional_metric(r1_c2, "Sortino Ratio", f"{sortino_val:.2f}", is_positive=sortino_val >= 0)
+    institutional_metric(r1_c3, "Calmar Ratio", f"{calmar_val:.2f}", is_positive=calmar_val >= 0)
+    institutional_metric(r1_c4, "Profit Factor", metrics.get("profit_factor", "N/A"), is_positive=float(metrics.get("profit_factor", 1) or 1) >= 1.0)
+    institutional_metric(r1_c5, "System Quality (SQN)", f"{sqn_val:.2f}", is_positive=sqn_val >= 0)
+
+    r2_c1, r2_c2, r2_c3, r2_c4, r2_c5 = st.columns(5)
+    institutional_metric(r2_c1, "Total Trades", trades_count, is_positive=True)
+    institutional_metric(r2_c2, "Win Rate", metrics.get("win_rate", "0.0%"), is_positive=True)
+    institutional_metric(r2_c3, "Expectancy ($)", f"${expectancy_val:,.2f}", is_positive=expectancy_val >= 0)
+    institutional_metric(r2_c4, "Payoff Ratio", f"{payoff_ratio:.2f}x", is_positive=payoff_ratio >= 1.0)
+    institutional_metric(r2_c5, "Ulcer Index", f"{ulcer_index:.2f}%", is_positive=ulcer_index < 10.0)
+
+    r3_c1, r3_c2, r3_c3, r3_c4, r3_c5 = st.columns(5)
+    institutional_metric(r3_c1, "Avg Win", f"${avg_win_val:,.2f}" if win_cnt > 0 else "$0.00", is_positive=True)
+    institutional_metric(r3_c2, "Avg Loss", f"-${avg_loss_val:,.2f}" if loss_cnt > 0 else "$0.00", is_positive=False)
+    institutional_metric(r3_c3, "Avg MAE", avg_mae, is_positive=False)
+    institutional_metric(r3_c4, "Avg MFE", avg_mfe, is_positive=True)
+    institutional_metric(r3_c5, "Recovery Factor", f"{recovery_factor:.2f}x", is_positive=recovery_factor >= 1.0)
+
+    r4_c1, r4_c2, r4_c3, r4_c4, r4_c5 = st.columns(5)
+    institutional_metric(r4_c1, "Net P&L", f"${net_pnl:,.0f}", delta=f"{(net_pnl/start_val)*100:.1f}%", is_positive=net_pnl >= 0)
+    institutional_metric(r4_c2, "Total Fees Paid", f"${total_fees_val:,.2f}", is_positive=False)
+    institutional_metric(r4_c3, "Max Drawdown", f"{raw_max_dd_str} (-${max_dd_val:,.0f})", is_positive=False)
+    institutional_metric(r4_c4, "Winners / Losers", f"{win_cnt}W / {loss_cnt}L", is_positive=win_cnt >= loss_cnt)
+    institutional_metric(r4_c5, "Breakeven Trades", metrics.get("breakevens", 0), is_positive=True)
 
 def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matching_orders):
-    """Renders the comprehensive 4-tab advanced quantitative data layout per iteration."""
-    
-    tab_equity, tab_analytics, tab_ledger, tab_raw = st.tabs([
+    """Renders the comprehensive 5-tab advanced quantitative data layout per iteration."""
+    tab_equity, tab_analytics, tab_ledger, tab_raw, tab_mc = st.tabs([
         "Equity Curve & Summary", 
         "Trade Analytics & Returns Distribution", 
         "Strategy Experiment & Ledger", 
-        "Raw CSV Inspector"
+        "Raw CSV Inspector",
+        "Monte Carlo Risk of Ruin"
     ])
     
     with tab_equity:
@@ -174,7 +261,9 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
                 color=alt.Color(field="Category", type="nominal", scale=alt.Scale(domain=['Winners', 'Losers', 'Breakevens'], range=['#00E676', '#FF5252', '#FFA726'])),
                 tooltip=['Category', 'Count']
             ).properties(height=200)
-            st.altair_chart(donut_chart, width='stretch')
+            
+            with st.container(border=True):
+                st.altair_chart(donut_chart, width='stretch')
 
         with col_b:
             st.markdown("##### Returns Distribution (Dollar PnL Buckets)")
@@ -205,45 +294,54 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
                         tooltip=['Clean_PnL:Q', 'count()']
                     ).properties(height=200).interactive()
                     
-                    st.altair_chart(hist_chart, width='stretch')
+                    with st.container(border=True):
+                        st.altair_chart(hist_chart, width='stretch')
 
     with tab_ledger:
         col_left, col_right = st.columns([1.5, 1])
         with col_left:
-            st.markdown("### Research Log & Experiment Notes")
-            if md_path.exists():
-                st.markdown(cached_read_markdown(str(md_path)))
-            else:
-                st.warning(f"Missing engineering log (`{md_path.name}`).")
+            with st.container(border=True):
+                st.markdown("### Research Log & Experiment Notes")
+                if md_path.exists():
+                    st.markdown(cached_read_markdown(str(md_path)))
+                else:
+                    st.warning(f"Missing engineering log (`{md_path.name}`).")
+                    
         with col_right:
-            st.markdown("### Performance Artifacts")
-            pdf_size_kb = pdf_path.stat().st_size / 1024
-            st.write(f"**PDF Report:** `{pdf_path.name}`")
-            st.write(f"**Size:** `{pdf_size_kb:.1f} KB`")
-            
-            pdf_bytes = cached_read_file_bytes(str(pdf_path))
-            download_clicked = st.download_button(
-                label="Download Full PDF Report",
-                data=pdf_bytes,
-                file_name=pdf_path.name,
-                mime="application/pdf",
-                key=f"pdf_{base_name}"
-            )
-            
-            if download_clicked:
-                st.toast("Thanks for downloading the institutional report!")
+            with st.container(border=True):
+                st.markdown("### Performance Artifacts")
+                pdf_size_kb = pdf_path.stat().st_size / 1024
+                st.write(f"**PDF Report:** `{pdf_path.name}`")
+                st.write(f"**Size:** `{pdf_size_kb:.1f} KB`")
+                
+                pdf_bytes = cached_read_file_bytes(str(pdf_path))
+                download_clicked = st.download_button(
+                    label="Download Full PDF Report",
+                    data=pdf_bytes,
+                    file_name=pdf_path.name,
+                    mime="application/pdf",
+                    key=f"pdf_{base_name}"
+                )
+                
+                if download_clicked:
+                    st.toast("Thanks for downloading the institutional report!")
 
     with tab_raw:
         has_data = False
         if matching_trades and matching_trades.exists():
             has_data = True
             st.markdown(f"**Completed Trades Log (`{matching_trades.name}`):**")
-            st.dataframe(pd.read_csv(matching_trades), width='stretch')
+            with st.container(border=True):
+                st.dataframe(pd.read_csv(matching_trades, low_memory=False), width='stretch')
             
         if matching_orders and matching_orders.exists():
             has_data = True
             st.markdown(f"**Order Execution Fills Log (`{matching_orders.name}`):**")
-            st.dataframe(pd.read_csv(matching_orders), width='stretch')
+            with st.container(border=True):
+                st.dataframe(pd.read_csv(matching_orders, low_memory=False), width='stretch')
             
         if not has_data:
             st.info("No raw trades or orders CSV files found matching this iteration in reports/.")
+
+    with tab_mc:
+        render_monte_carlo_fragment(metrics, base_name)

@@ -26,6 +26,18 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ##  System Architecture & Infrastructure Changelog
 
+## [v2.6.0] - 2026-08-08 (The Institutional Terminal UI & Dynamic Risk Polish)
+### Added
+- **4x5 Institutional Quant Grid (20 Metrics):** Expanded the risk metric matrix to 20 core institutional metrics, incorporating System Quality Number (SQN), Ulcer Index, Trade Expectancy ($), MAE/MFE averages, and granular win/loss breakdowns.
+- **Dynamic Institutional Metric Cards (`ui_components.py`):** Replaced default Streamlit cards with custom HTML/CSS institutional containers featuring conditional red/green states (crimson red `#2A1215` with `#FF5252` borders for negative returns, drawdowns, and high risk of ruin; glowing green for positive performance).
+- **Outlined Chart Containers:** Wrapped all Altair charts (Equity curves, Monte Carlo confidence bands, Trade Distribution donuts, and PnL histograms) in clean institutional grey/white outlined containers.
+- **Crisp Institutional Dividers:** Replaced default UI dividers with sleek white-to-slate-grey gradient horizontal rules (`#E2E8F0` to `#1E293B`).
+
+### Optimized
+- **Fragmented Monte Carlo Engine (`@st.fragment`):** Isolated the Monte Carlo simulation sliders and charts so parameter adjustments (simulations up to 10k, horizons up to 500) execute instantly in RAM without triggering a full-page Streamlit reload.
+- **Modularized UI Styling Architecture:** Extracted global CSS and terminal themes into a dedicated `ui_styles.py` module to maintain strict Separation of Concerns across the app architecture.
+- **Memory & Rendering Hygiene:** Enforced `low_memory=False` and optimized data downcasting for large historical trade and order CSV logs to prevent browser DOM lag.
+
 ## [v2.5.1] - 2026-08-07 (The Pro Dashboard & ISO Compliance Polish)
 ### Added
 - **Dynamic Hero Date Ranges:** Automatically extracts and displays the exact temporal boundaries (`YYYY-MM-DD` start/end dates) directly in the reigning champion equity chart header.
