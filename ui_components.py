@@ -25,7 +25,12 @@ def render_sidebar():
 @st.fragment
 def render_interactive_equity_chart(metrics, eq_df):
     """Renders the clean single-color institutional equity curve, starting equity baseline, and 12-metric grid."""
+      # Extract date range for display
+    start_date_str = eq_df.index.min().strftime('%Y-%m-%d')
+    end_date_str = eq_df.index.max().strftime('%Y-%m-%d')
     
+    st.markdown(f"**Backtest Date Range:** `{start_date_str}` ➔ `{end_date_str}`")
+
     st.markdown("""
         <style>
             [data-testid="stMetricValue"] {
@@ -190,7 +195,7 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
                     )
                     
                     hist_chart = alt.Chart(chart_df).mark_bar().encode(
-                        x=alt.X('Clean_PnL:Q', bin=alt.Bin(maxbins=20), title='Trade P&L ($)'),
+                        x=alt.X('Clean_PnL:Q', bin=alt.Bin(maxbins=31), title='Trade P&L ($)'),
                         y=alt.Y('count()', title='Number of Trades'),
                         color=alt.Color(
                             'Outcome:N', 
