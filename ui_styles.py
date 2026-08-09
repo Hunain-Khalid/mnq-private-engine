@@ -30,6 +30,13 @@ def inject_global_institutional_theme():
                 border: 1px solid #7F1D1D !important;
                 border-left: 4px solid #FF5252 !important;
             }
+
+             /* 2. TARGET STREAMLIT'S NATIVE BORDERED CONTAINERS EXPLICITLY */
+            [data-testid="stVerticalBlockBorderWrapper"] {
+                border: 2px solid #64748B !important;      /* Forces the outer container border to 2px and brighter */
+                border-radius: 12px !important;            /* Forces 12px rounded corners */
+                background-color: #121C24 !important;      /* Optional: matches card background */
+            }
             
             /* Make negative metric values red */
             div[data-testid="stMetric"]:has(div[data-testid="stMetricValue"]:contains("-")) [data-testid="stMetricValue"] {
@@ -39,7 +46,8 @@ def inject_global_institutional_theme():
             /* 3. CLEAN CHART & ELEMENT CONTAINERS */
             div[data-testid="stVerticalBlock"] div[data-testid="stContainer"] {
                 border-color: #334155 !important;
-                border-radius: 8px !important;
+                border: 1000px solid #334155 !important; 
+                border-radius:8px !important;
             }
 
             /* 4. TOOLBAR CLEANUP */
