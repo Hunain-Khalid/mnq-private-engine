@@ -82,8 +82,7 @@ def render_monte_carlo_fragment(metrics, base_name):
                 is_positive=(median_pnl_val >= 0)
             )
             
-            # 1. SPAGHETTI PLOT OVERLAY (70 paths) + P5/P10/MEDIAN/P90/P95 BANDS
-            spaghetti_layer = alt.Chart(spaghetti_df).mark_line(color='#475569', strokeWidth=1.0, opacity=0.5).encode(
+            spaghetti_layer = alt.Chart(spaghetti_df).mark_line(color='#475569', strokeWidth=1.0, opacity=0.65).encode(
                 x='Trade_Index:Q',
                 y='Equity:Q',
                 detail='Simulation:N'
@@ -105,7 +104,6 @@ def render_monte_carlo_fragment(metrics, base_name):
             with st.container(border=True):
                 st.altair_chart(combined_chart, width='stretch')
                 
-            # 2. DRAWDOWN DISTRIBUTION HISTOGRAM DIRECTLY UNDERNEATH
             st.markdown("##### Maximum Drawdown Distribution Across Simulations")
             dd_df = pd.DataFrame({"Max_Drawdown_Pct": max_drawdowns})
             
@@ -121,7 +119,7 @@ def render_monte_carlo_fragment(metrics, base_name):
             st.warning("Insufficient trade data to run Monte Carlo simulation.")
     else:
         st.info("No raw trades available for this model to generate Monte Carlo simulations.")
-        
+
 @st.fragment
 def render_interactive_equity_chart(metrics, eq_df):
     """Renders institutional equity curve, starting baseline, and the 4x5 (20-metric) Institutional Grid."""
@@ -224,7 +222,15 @@ def render_interactive_equity_chart(metrics, eq_df):
     # 🏛️ 4x5 INSTITUTIONAL QUANT GRID (20 METRICS)
     # ==========================================
     r1_c1, r1_c2, r1_c3, r1_c4, r1_c5 = st.columns(5)
-    institutional_metric(r1_c1, "Sharpe Ratio", metrics.get("sharpe", "N/A"), is_positive=float(metrics.get("sharpe", 0) or 0) >= 0)
+    
+    # 🛡️ Bulletproof Sharpe conversion
+    sharpe_raw = metrics.get("sharpe", "N/A")
+    try:
+        sharpe_float = float(sharpe_raw)
+    except (ValueError, TypeError):
+        sharpe_float = 0.0
+        
+    institutional_metric(r1_c1, "Sharpe Ratio", sharpe_raw, is_positive=sharpe_float >= 0)
     institutional_metric(r1_c2, "Sortino Ratio", f"{sortino_val:.2f}", is_positive=sortino_val >= 0)
     institutional_metric(r1_c3, "Calmar Ratio", f"{calmar_val:.2f}", is_positive=calmar_val >= 0)
     institutional_metric(r1_c4, "Profit Factor", metrics.get("profit_factor", "N/A"), is_positive=float(metrics.get("profit_factor", 1) or 1) >= 1.0)
@@ -319,7 +325,78 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
                     
                     with st.container(border=True):
                         st.altair_chart(hist_chart, width='stretch')
-
+                        
+        st.divider()
+        st.markdown("##### Temporal Edge & Strategy Stability (Rolling Sharpe)")
+        raw_df = metrics.get("raw_trades")
+        if isinstance(raw_df, pd.DataFrame) and not raw_df.empty:
+            entry_col = next((col for col in raw_df.columns if any(k in col.lower() for k in ['entry', 'start', 'open', 'time'])), None)
+            exit_col = next((col for col in raw_df.columns if any(k in col.lower() for k in ['exit', 'end', 'close'])), None)
+            pnl_col = next((col for col in raw_df.columns if any(k in col.lower() for k in ['profit', 'net', 'pnl', 'p&l'])), None)
+            
+            if entry_col and pnl_col:
+                try:
+                    chart_df = raw_df.copy()
+                    chart_df['Entry_Time'] = pd.to_datetime(chart_df[entry_col], errors='coerce')
+                    chart_df['Clean_PnL'] = pd.to_numeric(chart_df[pnl_col].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
+                    
+                    # Calculate overall average duration
+                    avg_duration_str = "N/A"
+                    if exit_col:
+                        chart_df['Exit_Time'] = pd.to_datetime(chart_df[exit_col], errors='coerce')
+                        durations = (chart_df['Exit_Time'] - chart_df['Entry_Time']).dt.total_seconds() / 60.0
+                        avg_mins = durations.mean()
+                        if not np.isnan(avg_mins):
+                            if avg_mins >= 60:
+                                avg_duration_str = f"{avg_mins / 60:.1f} hours"
+                            else:
+                                avg_duration_str = f"{avg_mins:.1f} mins"
+                    
+                    # Calculate separate Winner vs Loser durations & amounts
+                    winning_trades = chart_df[chart_df['Clean_PnL'] > 0]
+                    losing_trades = chart_df[chart_df['Clean_PnL'] < 0]
+                    
+                    def get_avg_dur(sub_df):
+                        if sub_df.empty or not exit_col: return "N/A"
+                        d = (sub_df['Exit_Time'] - sub_df['Entry_Time']).dt.total_seconds() / 60.0
+                        m = d.mean()
+                        if np.isnan(m): return "N/A"
+                        return f"{m/60:.1f}h" if m >= 60 else f"{m:.1f}m"
+                        
+                    avg_win_dur = get_avg_dur(winning_trades)
+                    avg_loss_dur = get_avg_dur(losing_trades)
+                    
+                    avg_win_amt = f"${winning_trades['Clean_PnL'].mean():,.2f}" if not winning_trades.empty else "$0.00"
+                    avg_loss_amt = f"-${abs(losing_trades['Clean_PnL'].mean()):,.2f}" if not losing_trades.empty else "$0.00"
+                    
+                    # 1. CLEAN INSTITUTIONAL EXECUTIVE TEXT SUMMARY BAR
+                    st.markdown(f"""
+                        > 📊 **Execution Diagnostics:** 
+                        > ⏱️ **Avg Duration:** `{avg_duration_str}` | 
+                        > 🟢 **Avg Win Dur:** `{avg_win_dur}` (`{avg_win_amt}`) | 
+                        > 🔴 **Avg Loss Dur:** `{avg_loss_dur}` (`{avg_loss_amt}`)
+                    """)
+                    
+                    # 2. Rolling Sharpe Ratio Overlay (30-trade window)
+                    chart_df['Rolling_Sharpe'] = chart_df['Clean_PnL'].rolling(window=min(30, len(chart_df))).mean() / (chart_df['Clean_PnL'].rolling(window=min(30, len(chart_df))).std() + 1e-9) * np.sqrt(252)
+                    rolling_df = chart_df.dropna(subset=['Rolling_Sharpe']).reset_index()
+                    rolling_df['Trade_Index'] = rolling_df.index
+                    
+                    line_chart = alt.Chart(rolling_df).mark_line(color='#FFA726', strokeWidth=2).encode(
+                        x=alt.X('Trade_Index:Q', title='Trade Sequence Index'),
+                        y=alt.Y('Rolling_Sharpe:Q', title='Rolling 30-Trade Sharpe Ratio'),
+                        tooltip=['Trade_Index', 'Rolling_Sharpe']
+                    ).properties(height=240).interactive()
+                    
+                    with st.container(border=True):
+                        st.markdown("**Strategy Stability (Rolling 30-Trade Sharpe Ratio)**")
+                        st.altair_chart(line_chart, width='stretch')
+                        
+                except Exception as e:
+                    st.warning(f"Could not generate temporal edge charts: {e}")
+            else:
+                st.info("Required timestamp and PnL columns not found for temporal analytics.")
+                
     with tab_ledger:
         col_left, col_right = st.columns([1.5, 1])
         with col_left:

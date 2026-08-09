@@ -26,6 +26,14 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ##  System Architecture & Infrastructure Changelog
 
+## [v2.8.0] - 2026-08-09 (The Temporal Analytics & Strategy Stability Update)
+### Added
+- **Executive Diagnostics Text Bar (`ui_components.py`):** Integrated a clean institutional summary block tracking Average Winning Trade Duration, Average Losing Trade Duration, Average Win/Loss amounts, Most Profitable Hour, and Worst Performing Session.
+- **Strategy Stability Rolling Sharpe Chart (`ui_components.py`):** Added a rolling 30-trade Sharpe Ratio stability line chart to track regime decay, alpha degradation, and strategy consistency over trade sequence time.
+
+### Optimized
+- **Streamlined Analytics Tab:** Removed redundant sparse hourly distribution charts in favor of a focused, high-signal diagnostic suite tailored for strict EOD execution rules.
+
 ## [v2.7.0] - 2026-08-08 (The Advanced Tail-Risk & Spaghetti Variance Update)
 ### Added
 - **Extended Monte Carlo Tail Bounds (P5 & P95):** Upgraded the bootstrap simulation engine to map extreme tail risk (P5 deep red and P95 vivid green) alongside P10, Median, and P90 confidence boundaries.
