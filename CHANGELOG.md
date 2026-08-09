@@ -35,7 +35,7 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 - **Streamlined Analytics Tab:** Removed redundant sparse hourly distribution charts in favor of a focused, high-signal diagnostic suite tailored for strict EOD execution rules.
 
 ### Fix
-fix: rolling sharpe failed to render
+- **Fix:** Fixed rolling sharpe chart failed to render
 
 ## [v2.7.0] - 2026-08-08 (The Advanced Tail-Risk & Spaghetti Variance Update)
 ### Added
