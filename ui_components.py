@@ -371,26 +371,47 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
                     
                     # 1. CLEAN INSTITUTIONAL EXECUTIVE TEXT SUMMARY BAR
                     st.markdown(f"""
-                        > 📊 **Execution Diagnostics:** 
-                        > ⏱️ **Avg Duration:** `{avg_duration_str}` | 
-                        > 🟢 **Avg Win Dur:** `{avg_win_dur}` (`{avg_win_amt}`) | 
-                        > 🔴 **Avg Loss Dur:** `{avg_loss_dur}` (`{avg_loss_amt}`)
-                    """)
+                        <div style="
+                            background-color: #121C24;
+                            border: 1px solid #475569;
+                            border-left: 4px solid #00E676;
+                            padding: 16px 20px;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+                            margin-bottom: 20px;
+                            color: #F8FAFC;
+                            font-size: 14px;
+                        ">
+                            <div style="font-weight: 600; color: #94A3B8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">📊 Execution Diagnostics</div>
+                            <span style="margin-right: 15px;">⏱️ <b>Avg Duration:</b> {avg_duration_str}</span>
+                            <span style="margin-right: 15px; color: #00E676;">🟢 <b>Avg Win Dur:</b> {avg_win_dur} ({avg_win_amt})</span>
+                            <span style="color: #FF5252;">🔴 <b>Avg Loss Dur:</b> {avg_loss_dur} ({avg_loss_amt})</span>
+                        </div>
+                    """, unsafe_allow_html=True)
                     
-                    # 2. Rolling Sharpe Ratio Overlay (30-trade window)
-                    chart_df['Rolling_Sharpe'] = chart_df['Clean_PnL'].rolling(window=min(30, len(chart_df))).mean() / (chart_df['Clean_PnL'].rolling(window=min(30, len(chart_df))).std() + 1e-9) * np.sqrt(252)
-                    rolling_df = chart_df.dropna(subset=['Rolling_Sharpe']).reset_index()
-                    rolling_df['Trade_Index'] = rolling_df.index
+                    # 2. Rolling Sharpe Ratio Overlay (Safeguarded window size)
+                    window_size = min(30, max(2, len(chart_df) // 2))
+                    chart_df['Rolling_Sharpe'] = (
+                        chart_df['Clean_PnL'].rolling(window=window_size).mean() / 
+                        (chart_df['Clean_PnL'].rolling(window=window_size).std() + 1e-9)
+                    ) * np.sqrt(252)
                     
-                    line_chart = alt.Chart(rolling_df).mark_line(color='#FFA726', strokeWidth=2).encode(
-                        x=alt.X('Trade_Index:Q', title='Trade Sequence Index'),
-                        y=alt.Y('Rolling_Sharpe:Q', title='Rolling 30-Trade Sharpe Ratio'),
-                        tooltip=['Trade_Index', 'Rolling_Sharpe']
-                    ).properties(height=240).interactive()
+                    rolling_df = chart_df.dropna(subset=['Rolling_Sharpe']).reset_index(drop=True)
                     
-                    with st.container(border=True):
-                        st.markdown("**Strategy Stability (Rolling 30-Trade Sharpe Ratio)**")
-                        st.altair_chart(line_chart, width='stretch')
+                    if not rolling_df.empty:
+                        rolling_df['Trade_Index'] = rolling_df.index
+                        
+                        line_chart = alt.Chart(rolling_df).mark_line(color='#FFA726', strokeWidth=2).encode(
+                            x=alt.X('Trade_Index:Q', title='Trade Sequence Index'),
+                            y=alt.Y('Rolling_Sharpe:Q', title='Rolling Sharpe Ratio'),
+                            tooltip=['Trade_Index', 'Rolling_Sharpe']
+                        ).properties(height=240).interactive()
+                        
+                        with st.container(border=True):
+                            st.markdown("**Strategy Stability (Rolling Sharpe Ratio)**")
+                            st.altair_chart(line_chart, width='stretch')
+                    else:
+                        st.info("Not enough trades in this backtest to calculate rolling stability.")
                         
                 except Exception as e:
                     st.warning(f"Could not generate temporal edge charts: {e}")
