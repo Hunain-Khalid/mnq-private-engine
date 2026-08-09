@@ -4,6 +4,17 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ---
 
+### [v0.2.0-HMA-ATR-EOD] - 2026-08-09 (Active Development)
+- **Phase:** In-Sample Training (IS) 
+- **Target Asset:** SP_500_E_MINI (ES) / MNQ
+- **Pre-Execution Hypothesis:** Eliminating dual-indicator lag by replacing slow/fast HMA crossovers with a **Single Hull Moving Average (HMA) Slope Direction** combined with an **Average True Range (ATR) Volatility Gating Filter** will eliminate whipsaw losses in sideways/choppy regimes while preserving trend capture.
+- **Economic Rationale:** Dual-indicator moving average crossovers suffer from compounding lag, entering late and getting whipsawed during consolidation. Measuring the continuous mathematical velocity (slope) of a single HMA removes confirmation delay, while an ATR volatility gate acts as a structural bouncer—refusing to take trades when market energy is below a minimum institutional threshold.
+- **Architectural Rules (No Reversal Filter):**
+  1. **Trend Engine:** Calculate 20-period HMA. If `HMA[t] > HMA[t-3]`, bias is Long. If `HMA[t] < HMA[t-3]`, bias is Flat/Short (no immediate forced reverse without structural confirmation).
+  2. **Volatility Gate:** Calculate 14-period ATR. If `ATR[t] < ATR_Threshold`, block all new entries (filter out low-volume chop).
+  3. **Execution & Risk:** Scale positions via ATR-based risk sizing. Comply with prop-firm EOD flat constraints.
+- **Expected Empirical Outcomes:** Expect reduction in total trade count (killing the "death by a thousand cuts" small loss spikes from Iteration 0.1) and an expanded positive fat tail on the PnL distribution histogram.
+
 ### [v0.1.01-EOD] - 2026-08-07 15:00 EST (Archived Experiment)
 - **In-Sample Window:** 2020-01-01 to 2024-06-30 (Parameter Tuning)
 - **Out-of-Sample Window:** 2024-07-01 to 2026-06-30 (Blind Verification)
