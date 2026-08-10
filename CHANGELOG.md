@@ -45,6 +45,15 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ##  System Architecture & Infrastructure Changelog
 
+## [v3.0.0] - 2026-08-10 (The Clean-History & Cloud-Native Production Milestone)
+### Added
+- **GitHub Releases Cloud-PDF Offloading (`app.py`, `ui_components.py`):** Fully decoupled heavy 300 DPI PDF research reports from local repository storage, implementing dynamic runtime streaming via GitHub Release tags (`v0.1`, `v0.2`).
+- **End-to-End Binary & Gzip Pipeline (`compress_reports.py`, `backend_metrics.py`):** Finalized the master ETL compression pipeline supporting raw JSON ➔ MessagePack ➔ Max Zstandard Level 22 (`.msgpack.zst`) binary metrics, paired with native Gzip `.csv.gz` trade log archiving.
+
+### Optimized
+- **Repository History Scrub:** Purged all legacy uncompressed `.pdf`, `.json`, and `.csv` binaries from historical Git commit tracking via `git filter-repo`, reducing total repository pack size down to an immaculate 1.08 MB.
+- **Resilient UI Error-Handling:** Integrated type-checked date parsing and universal numeric safety (`safe_float`) to guarantee zero rendering exceptions across varying backtest index formats.
+
 ## [v2.9.0] - 2026-08-10 (The Multi-Format Resiliency & Cloud Release Pipeline)
 ### Added
 - **Multi-Format Metric Ingestion (`backend_metrics.py`):** Upgraded backend loaders to tolerate and parse multi-format metric files seamlessly (`.msgpack.zst`, `.msgpack`, and legacy `.json`), paired with native Gzip `.csv.gz` trade log ingestion.
