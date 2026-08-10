@@ -443,26 +443,17 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
         with col_right:
             with st.container(border=True):
                 st.markdown("### Performance Artifacts")
-                st.caption("Pristine 300 DPI PDF (GitHub Release)")
+                st.write(f"**PDF Report:** `{base_name}.pdf`")
+                st.write(f"**Storage:** Google Drive (Cloud)")
                 
-                # Check if pdf_path is a local file or a GitHub URL string
-                if isinstance(pdf_path, Path) and pdf_path.exists():
-                    pdf_size_kb = pdf_path.stat().st_size / 1024
-                    st.write(f"**PDF Report:** `{pdf_path.name}`")
-                    st.write(f"**Size:** `{pdf_size_kb:.1f} KB`")
-                    pdf_bytes = cached_read_file_bytes(str(pdf_path))
-                    st.download_button(
-                        label="Download Full PDF Report",
-                        data=pdf_bytes,
-                        file_name=pdf_path.name,
-                        mime="application/pdf",
-                        key=f"pdf_{base_name}"
-                    )
+                # Fetch the dynamic Google Drive URL from backend metrics
+                from backend_metrics import get_gdrive_pdf_url
+                cloud_pdf_url = get_gdrive_pdf_url(base_name)
+                
+                if cloud_pdf_url != "#":
+                    st.markdown(f"**[📥 Download Pristine 300 DPI PDF]({cloud_pdf_url})**")
                 else:
-                    # It's a GitHub URL string
-                    st.write(f"**PDF Asset:** `{base_name}.pdf`")
-                    st.write("**Hosting:** GitHub Releases (Cloud)")
-                    st.markdown(f"[📥 Download Pristine PDF from GitHub]({pdf_path})")
+                    st.warning("⚠️ Cloud PDF link pending registration.")
 
     with tab_raw:
         has_data = False

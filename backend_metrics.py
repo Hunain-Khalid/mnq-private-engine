@@ -6,6 +6,21 @@ import numpy as np
 import msgpack
 import zstandard as zstd
 
+# 📂 Google Drive Cloud Registry for Pristine PDF Artifacts
+GDRIVE_FILE_MAP = {
+    "v0.1_baseline": "1PaRZwA0xN0MsOeL-YGykB323KzxwiSub",
+    "v0.1.01_eod_isp": "1xlz_CSnYF-w3ytmpXqbLSr9Gy2KaXsm3",
+    "v0.1.01_eod_oosf": "1CblMEutQ-sWSdf-4cW-hOoiXCh-hCznN",
+    "v0.2_hma20_eod_isf": "10T58RNmBi58u7zHnRLCd0DZDc1B8PjD4"
+}
+
+def get_gdrive_pdf_url(base_name: str) -> str:
+    """Dynamically returns the Google Drive direct download URL for a given report stem."""
+    file_id = GDRIVE_FILE_MAP.get(base_name)
+    if file_id:
+        return f"https://drive.google.com/uc?export=download&id={file_id}"
+    return "#" # Fallback link if ID is missing
+
 @st.cache_data
 def get_cached_reports():
     """Scans the reports directory for any metric files (.msgpack.zst, .msgpack, .json) to build the card deck."""

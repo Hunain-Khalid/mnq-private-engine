@@ -45,6 +45,15 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ##  System Architecture & Infrastructure Changelog
 
+## [v3.1.0] - 2026-08-19 (The Cloud-Registry & Google Drive Artifact Architecture)
+### Added
+- **Dynamic Google Drive Cloud Registry (`backend_metrics.py`, `ui_components.py`):** Decoupled heavy PDF artifacts entirely from repository storage by implementing a centralized `GDRIVE_FILE_MAP` lookup dictionary. The dashboard now dynamically resolves and streams uncompressed 300 DPI pristine PDF reports on-demand via direct cloud download links.
+- **End-to-End Binary & Gzip Pipeline (`compress_reports.py`, `backend_metrics.py`):** Finalized the master ETL compression suite supporting raw JSON ➔ MessagePack ➔ Max Zstandard Level 22 (`.msgpack.zst`) binary metrics, paired with native Gzip `.csv.gz` trade log archiving for zero-bloat repository hygiene.
+
+### Optimized
+- **Repository Size & Performance:** Maintained an immaculate ~1.08 MB git pack size by offloading binary reports to cloud storage and optimizing local data deserialization via C-speed binary parsers.
+- **Resilient UI Error-Handling:** Integrated universal numeric safety (`safe_float`) and multi-format directory scanners (`.msgpack.zst`, `.msgpack`, `.json`) to guarantee zero rendering exceptions across legacy and modern backtest structures.
+
 ## [v3.0.0] - 2026-08-10 (The Clean-History & Cloud-Native Production Milestone)
 ### Added
 - **GitHub Releases Cloud-PDF Offloading (`app.py`, `ui_components.py`):** Fully decoupled heavy 300 DPI PDF research reports from local repository storage, implementing dynamic runtime streaming via GitHub Release tags (`v0.1`, `v0.2`).
