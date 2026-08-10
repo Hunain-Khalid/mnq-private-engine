@@ -3,15 +3,26 @@ from pathlib import Path
 import pandas as pd
 import streamlit as st
 import numpy as np
+import msgpack
+import zstandard as zstd
 
 @st.cache_data
 def get_cached_reports():
-    """Scans the reports directory once and caches the list of files in RAM."""
+    """Scans the reports directory for any metric files (.msgpack.zst, .msgpack, .json) to build the card deck."""
     reports_dir = Path("reports")
     if not reports_dir.exists():
         reports_dir.mkdir()
         return []
-    return sorted(reports_dir.glob("*.pdf"), reverse=True)
+    
+    # 🛡️ Cast a wide net for any metric file format so no reports are missed
+    files = (
+        list(reports_dir.glob("*.msgpack.zst")) + 
+        list(reports_dir.glob("*.msgpack")) + 
+        list(reports_dir.glob("*.json"))
+    )
+    
+    unique_files = {f.stem.replace(".msgpack", ""): f for f in files}
+    return sorted(unique_files.values(), reverse=True)
 
 @st.cache_data
 def cached_read_markdown(file_path_str: str) -> str:
@@ -31,19 +42,30 @@ def cached_read_file_bytes(file_path_str: str) -> bytes:
 
 @st.cache_data
 def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
-    """Strictly parses QuantConnect result JSON files and calculates institutional trade stats per exact file stem."""
+    """Strictly parses Zst-compressed MessagePack, MessagePack, or JSON files and calculates trade stats."""
     reports_dir = Path(reports_dir_str)
     
-    matching_json = reports_dir / f"{pdf_stem}.json"
-    if not matching_json.exists():
-        json_candidates = list(reports_dir.glob("*.json"))
-        matching_json = next((j for j in json_candidates if j.stem.lower().replace(" ", "").replace("_", "") == pdf_stem.lower().replace(" ", "").replace("_", "")), None)
+    # 1. Multi-format metric file lookup (.msgpack.zst, .msgpack, .json)
+    matching_zst = reports_dir / f"{pdf_stem}.msgpack.zst"
+    if not matching_zst.exists():
+        matching_zst = reports_dir / f"{pdf_stem}.msgpack"
+    if not matching_zst.exists():
+        matching_zst = reports_dir / f"{pdf_stem}.json"
+        
+    if not matching_zst.exists():
+        candidates = list(reports_dir.glob("*.msgpack.zst")) + list(reports_dir.glob("*.msgpack")) + list(reports_dir.glob("*.json"))
+        clean_target = pdf_stem.lower().replace(" ", "").replace("_", "").replace("msgpack", "").replace(".zst", "")
+        matching_zst = next((j for j in candidates if clean_target in j.stem.lower().replace(" ", "").replace("_", "").replace("msgpack", "").replace(".zst", "")), None)
 
-    matching_trades = reports_dir / f"{pdf_stem}_trades.csv"
+    # 2. Bulletproof trade log lookup (.csv.gz or .csv)
+    matching_trades = reports_dir / f"{pdf_stem}_trades.csv.gz"
     if not matching_trades.exists():
-        csv_candidates = list(reports_dir.glob("*_trades.csv"))
+        matching_trades = reports_dir / f"{pdf_stem}_trades.csv"
+        
+    if not matching_trades.exists():
+        csv_candidates = list(reports_dir.glob("*_trades.csv*"))
         clean_stem = pdf_stem.lower().replace(" ", "").replace("_", "")
-        matching_trades = next((c for c in csv_candidates if c.stem.lower().replace(" ", "").replace("_", "").replace("trades", "") == clean_stem), None)
+        matching_trades = next((c for c in csv_candidates if clean_stem in c.stem.lower().replace(" ", "").replace("_", "")), None)
 
     equity_df = pd.DataFrame()
     sharpe = "N/A"
@@ -57,11 +79,23 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
     losers_cnt = 0
     breakeven_cnt = 0
     df_t = pd.DataFrame()
+    data = {}
 
-    if matching_json and matching_json.exists():
+    if matching_zst and matching_zst.exists():
         try:
-            with open(matching_json, "r") as f:
-                data = json.load(f)
+            with open(matching_zst, "rb") as f:
+                file_bytes = f.read()
+            
+            # Handle decoding based on file extension
+            if matching_zst.name.endswith(".zst"):
+                dctx = zstd.ZstdDecompressor()
+                packed_bytes = dctx.decompress(file_bytes)
+                data = msgpack.unpackb(packed_bytes, raw=False)
+            elif matching_zst.name.endswith(".msgpack"):
+                data = msgpack.unpackb(file_bytes, raw=False)
+            else:
+                data = json.loads(file_bytes.decode("utf-8"))
+            
             stats = data.get("Statistics", {})
             if not stats:
                 for key, val in data.items():
@@ -83,10 +117,11 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
             else:
                 drawdown = "31.7%"
         except Exception as e:
-            print(f"Error parsing JSON for {pdf_stem}: {e}")
+            print(f"Error parsing metrics for {pdf_stem}: {e}")
 
     if matching_trades and matching_trades.exists():
         try:
+            # Pandas natively handles .csv.gz decompression
             df_t = pd.read_csv(matching_trades, low_memory=False)
             trades_count = len(df_t)
             
@@ -125,7 +160,9 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
                     equity_df = equity_df.set_index("Time")
                 else:
                     eq_vals.insert(0, base_cap)
-                    equity_df = pd.DataFrame({"Equity": eq_vals})
+                    trade_indices = list(range(len(eq_vals)))
+                    equity_df = pd.DataFrame({"Trade_Index": trade_indices, "Equity": eq_vals})
+                    equity_df = equity_df.set_index("Trade_Index")
         except Exception as e:
             print(f"Error processing trades CSV for {pdf_stem}: {e}")
 
@@ -183,7 +220,6 @@ def run_monte_carlo_simulation(raw_trades_df, num_simulations=1000, num_trades_t
             
     risk_of_ruin_pct = (ruin_count / num_simulations) * 100
     
-    # Percentiles for confidence bands
     median_path = np.median(sim_results, axis=0)
     p5_path = np.percentile(sim_results, 5, axis=0)
     p10_path = np.percentile(sim_results, 10, axis=0)
@@ -199,7 +235,6 @@ def run_monte_carlo_simulation(raw_trades_df, num_simulations=1000, num_trades_t
         "P95": p95_path
     })
     
-    # Extract a random sample of 50 paths for spaghetti lines
     spaghetti_sample_idx = np.random.choice(num_simulations, size=min(50, num_simulations), replace=False)
     spaghetti_data = []
     for sim_id in spaghetti_sample_idx:

@@ -4,6 +4,7 @@ import altair as alt
 import numpy as np
 from backend_metrics import cached_read_markdown, cached_read_file_bytes, run_monte_carlo_simulation
 from ui_styles import inject_global_institutional_theme
+from pathlib import Path
 
 def render_sidebar():
     """Renders the standard system sidebar configuration and returns selected page."""
@@ -122,9 +123,18 @@ def render_monte_carlo_fragment(metrics, base_name):
 
 @st.fragment
 def render_interactive_equity_chart(metrics, eq_df):
-    """Renders institutional equity curve, starting baseline, and the 4x5 (20-metric) Institutional Grid."""
-    start_date_str = eq_df.index.min().strftime('%Y-%m-%d')
-    end_date_str = eq_df.index.max().strftime('%Y-%m-%d')
+    """Renders the clean single-color institutional equity curve, starting equity baseline, and 12-metric grid."""
+    # 🛡️ Safely extract date range for display (handles datetime vs integer indexes)
+    try:
+        min_idx = eq_df.index.min()
+        max_idx = eq_df.index.max()
+        start_date_str = min_idx.strftime('%Y-%m-%d') if hasattr(min_idx, 'strftime') else str(min_idx)
+        end_date_str = max_idx.strftime('%Y-%m-%d') if hasattr(max_idx, 'strftime') else str(max_idx)
+    except Exception:
+        start_date_str = "N/A"
+        end_date_str = "N/A"
+    
+    st.markdown(f"**Backtest Date Range:** `{start_date_str}` ➔ `{end_date_str}`")
     st.markdown(f"**Backtest Date Range:** `{start_date_str}` ➔ `{end_date_str}`")
 
     start_cap_val = eq_df['Equity'].iloc[0]
@@ -209,6 +219,8 @@ def render_interactive_equity_chart(metrics, eq_df):
     else:
         sqn_val = 0.0
 
+        
+
     cum_max = eq_series.cummax()
     drawdowns_pct = (eq_series - cum_max) / cum_max
     ulcer_index = np.sqrt(np.mean(drawdowns_pct ** 2)) * 100
@@ -229,7 +241,7 @@ def render_interactive_equity_chart(metrics, eq_df):
         sharpe_float = float(sharpe_raw)
     except (ValueError, TypeError):
         sharpe_float = 0.0
-        
+
     institutional_metric(r1_c1, "Sharpe Ratio", sharpe_raw, is_positive=sharpe_float >= 0)
     institutional_metric(r1_c2, "Sortino Ratio", f"{sortino_val:.2f}", is_positive=sortino_val >= 0)
     institutional_metric(r1_c3, "Calmar Ratio", f"{calmar_val:.2f}", is_positive=calmar_val >= 0)
@@ -431,21 +443,26 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
         with col_right:
             with st.container(border=True):
                 st.markdown("### Performance Artifacts")
-                pdf_size_kb = pdf_path.stat().st_size / 1024
-                st.write(f"**PDF Report:** `{pdf_path.name}`")
-                st.write(f"**Size:** `{pdf_size_kb:.1f} KB`")
+                st.caption("Pristine 300 DPI PDF (GitHub Release)")
                 
-                pdf_bytes = cached_read_file_bytes(str(pdf_path))
-                download_clicked = st.download_button(
-                    label="Download Full PDF Report",
-                    data=pdf_bytes,
-                    file_name=pdf_path.name,
-                    mime="application/pdf",
-                    key=f"pdf_{base_name}"
-                )
-                
-                if download_clicked:
-                    st.toast("Thanks for downloading the institutional report!")
+                # Check if pdf_path is a local file or a GitHub URL string
+                if isinstance(pdf_path, Path) and pdf_path.exists():
+                    pdf_size_kb = pdf_path.stat().st_size / 1024
+                    st.write(f"**PDF Report:** `{pdf_path.name}`")
+                    st.write(f"**Size:** `{pdf_size_kb:.1f} KB`")
+                    pdf_bytes = cached_read_file_bytes(str(pdf_path))
+                    st.download_button(
+                        label="Download Full PDF Report",
+                        data=pdf_bytes,
+                        file_name=pdf_path.name,
+                        mime="application/pdf",
+                        key=f"pdf_{base_name}"
+                    )
+                else:
+                    # It's a GitHub URL string
+                    st.write(f"**PDF Asset:** `{base_name}.pdf`")
+                    st.write("**Hosting:** GitHub Releases (Cloud)")
+                    st.markdown(f"[📥 Download Pristine PDF from GitHub]({pdf_path})")
 
     with tab_raw:
         has_data = False

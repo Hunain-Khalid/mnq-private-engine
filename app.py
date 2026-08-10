@@ -33,39 +33,47 @@ if page == "Backtests (IS / OOS)":
     st.subheader("Current Production Model: v1.2 (HMA + ATR)")
     st.info("Status: Passed 6-month blind OOS test. Sharpe > 1.5 | Max Drawdown < 12%.")
     
-    pdf_files = get_cached_reports()
+    # Scans for .msgpack.zst binary metrics files as master anchors
+    zst_files = get_cached_reports()
     
     # 🏆 FIND REIGNING CHAMPION FOR THE HERO EQUITY CURVE
-    champ_pdf = None
+    champ_stem = None
     champ_sharpe = -999.0
     champ_metrics = None
     
-    for p_path in pdf_files:
-        m = load_qc_json_metrics(p_path.stem)
+    for z_path in zst_files:
+        stem = z_path.name.replace(".msgpack.zst", "")
+        m = load_qc_json_metrics(stem)
         if m:
             try:
                 s_val = float(m.get("sharpe", -999.0))
                 if s_val > champ_sharpe:
                     champ_sharpe = s_val
-                    champ_pdf = p_path
+                    champ_stem = stem
                     champ_metrics = m
             except:
                 pass
                 
-    if not champ_metrics and pdf_files:
-        champ_pdf = pdf_files[0]
-        champ_metrics = load_qc_json_metrics(champ_pdf.stem)
+    if not champ_metrics and zst_files:
+        champ_stem = zst_files[0].name.replace(".msgpack.zst", "")
+        champ_metrics = load_qc_json_metrics(champ_stem)
         
     hero_start_date = "N/A"
     hero_end_date = "N/A"
     
-    if champ_metrics and champ_pdf:
+    if champ_metrics and champ_stem:
         hero_df = champ_metrics.get("equity_curve")
         if isinstance(hero_df, pd.DataFrame) and not hero_df.empty:
-            hero_start_date = hero_df.index.min().strftime('%Y-%m-%d')
-            hero_end_date = hero_df.index.max().strftime('%Y-%m-%d')
+            try:
+                min_idx = hero_df.index.min()
+                max_idx = hero_df.index.max()
+                hero_start_date = min_idx.strftime('%Y-%m-%d') if hasattr(min_idx, 'strftime') else str(min_idx)
+                hero_end_date = max_idx.strftime('%Y-%m-%d') if hasattr(max_idx, 'strftime') else str(max_idx)
+            except Exception:
+                hero_start_date = "N/A"
+                hero_end_date = "N/A"
             
-            st.markdown(f"### All-Time Production Equity Trajectory (`{champ_pdf.stem.upper()}` - Sharpe: {champ_sharpe})")
+            st.markdown(f"### All-Time Production Equity Trajectory (`{champ_stem.upper()}` - Sharpe: {champ_sharpe})")
             
             hero_line = alt.Chart(hero_df.reset_index()).mark_line(
                 color='#00E676', strokeWidth=2
@@ -91,8 +99,8 @@ if page == "Backtests (IS / OOS)":
     st.subheader("Strategy Leaderboard & Version Comparison")
 
     leaderboard_data = []
-    for p_path in pdf_files:
-        b_name = p_path.stem
+    for z_path in zst_files:
+        b_name = z_path.name.replace(".msgpack.zst", "")
         m = load_qc_json_metrics(b_name)
         if m:
             eq = m.get("equity_curve")
@@ -126,12 +134,12 @@ if page == "Backtests (IS / OOS)":
     st.divider()
     st.subheader("Strategy Iterations & Card Deck")
 
-    if not pdf_files:
-        st.info("No reports found yet. Add your QC PDFs, JSONs, and markdown logs to the reports/ folder.")
+    if not zst_files:
+        st.info("No reports found yet. Add your .msgpack.zst metrics, trades CSVs, and markdown logs to the reports/ folder.")
     else:
         model_groups = {}
-        for pdf_path in pdf_files:
-            b_name = pdf_path.stem
+        for z_path in zst_files:
+            b_name = z_path.name.replace(".msgpack.zst", "")
             clean_key = b_name.lower()
             for tag in ["_isf", "_oosf", "_isp", "_oosp", "_is", "_oos", "isf", "oosf", "isp", "oosp", "is", "oos", "fail"]:
                 clean_key = clean_key.replace(tag, "")
@@ -139,13 +147,14 @@ if page == "Backtests (IS / OOS)":
             
             if clean_key not in model_groups:
                 model_groups[clean_key] = []
-            model_groups[clean_key].append(pdf_path)
+            model_groups[clean_key].append(z_path)
 
+        # 🎴 MODEL FAMILY SELECTOR
         selected_model = st.selectbox("📂 Select Strategy Model Family:", list(model_groups.keys()))
         
         if selected_model:
             model_reports = model_groups[selected_model]
-            model_reports = sorted(model_reports, key=lambda x: 1 if "oos" in x.stem.lower() else 0)
+            model_reports = sorted(model_reports, key=lambda x: 1 if "oos" in x.name.lower() else 0)
             
             state_key = f"slide_idx_{selected_model}"
             if state_key not in st.session_state:
@@ -161,12 +170,13 @@ if page == "Backtests (IS / OOS)":
                     current_idx = 0
                     st.session_state[state_key] = 0
                     
-                current_pdf = model_reports[current_idx]
-                is_oos = "oos" in current_pdf.stem.lower()
+                current_zst = model_reports[current_idx]
+                base_name = current_zst.name.replace(".msgpack.zst", "")
+                is_oos = "oos" in base_name.lower()
                 phase_label = "Out-of-Sample (Blind Test)" if is_oos else "In-Sample (Training)"
                 
                 with nav_col1:
-                    st.markdown(f"## Active Card: `{current_pdf.stem.upper()}`")
+                    st.markdown(f"## Active Card: `{base_name.upper()}`")
                     st.caption(f"Phase: **{phase_label}** (Card {current_idx + 1} of {len(model_reports)})")
                     
                 with nav_col2:
@@ -180,14 +190,13 @@ if page == "Backtests (IS / OOS)":
                             st.session_state[state_key] = min(len(model_reports) - 1, current_idx + 1)
                             st.rerun()
 
-                base_name = current_pdf.stem
                 base_lower = base_name.lower()
                 
                 if "oos" in base_lower:
                     is_phase = "IN-SAMPLE (Training)"
                     is_status = "PASSED (Optimized)"
                     
-                    oos_phase = "OUT-OF-SAMPLE (Blind Test)"
+                    oos_phase = "OUT-OF-Sample (Blind Test)"
                     if "f" in base_lower or "fail" in base_lower:
                         oos_color = "#FF5252"
                         oos_dot = "🔴"
@@ -221,15 +230,19 @@ if page == "Backtests (IS / OOS)":
                 st.markdown(badge_html, unsafe_allow_html=True)
 
                 reports_dir = Path("reports")
-                md_path = pdf_path.with_suffix(".md")
+                md_path = reports_dir / f"{base_name}.md"
                 
+                version_tag = base_name.split("_")[0]
+                pdf_filename = f"{base_name}.pdf"
+                github_pdf_url = f"https://github.com/Hunain-Khalid/mnq-private-engine/releases/download/{version_tag}/{pdf_filename}"
+
                 clean_stem = base_name.lower().replace(" ", "").replace("_", "")
                 for tag in ["isf", "oosf", "isp", "oosp", "is", "oos", "fail"]:
                     clean_stem = clean_stem.replace(tag, "")
 
                 matching_trades = None
-                for c_path in reports_dir.glob("*_trades.csv"):
-                    c_clean = c_path.stem.lower().replace(" ", "").replace("_", "")
+                for c_path in reports_dir.glob("*_trades.csv*"):
+                    c_clean = c_path.stem.lower().replace(" ", "").replace("_", "").replace(".csv", "")
                     for tag in ["isf", "oosf", "isp", "oosp", "is", "oos", "fail"]:
                         c_clean = c_clean.replace(tag, "")
                     if clean_stem in c_clean or c_clean in clean_stem or base_name.lower() in c_path.stem.lower():
@@ -237,8 +250,8 @@ if page == "Backtests (IS / OOS)":
                         break
 
                 matching_orders = None
-                for o_path in reports_dir.glob("*_orders.csv"):
-                    o_clean = o_path.stem.lower().replace(" ", "").replace("_", "")
+                for o_path in reports_dir.glob("*_orders.csv*"):
+                    o_clean = o_path.stem.lower().replace(" ", "").replace("_", "").replace(".csv", "")
                     for tag in ["isf", "oosf", "isp", "oosp", "is", "oos", "fail"]:
                         o_clean = o_clean.replace(tag, "")
                     if clean_stem in o_clean or o_clean in clean_stem or base_name.lower() in o_path.stem.lower():
@@ -247,7 +260,7 @@ if page == "Backtests (IS / OOS)":
 
                 metrics = load_qc_json_metrics(base_name)
                 if metrics:
-                    render_pro_tabs(metrics, md_path, current_pdf, base_name, matching_trades, matching_orders)
+                    render_pro_tabs(metrics, md_path, github_pdf_url, base_name, matching_trades, matching_orders)
                     
 # ==========================================
 # PAGE 2: LIVE / PAPER TRADING

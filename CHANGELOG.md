@@ -4,7 +4,6 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ---
 
-
 ### [v0.3.0 to v0.4.5-ROADMAP] - Research Pipeline & Iteration Schedule (Active Development)
 - **v0.3.0 (The Foundation):** Fast Hull Moving Average (HMA) + ATR Volatility Gate + EOD Prop-Firm Flat Rule. Goal: Stop whipsaw bleeding and establish positive expectancy baseline.
 - **v0.4.0 (The Dynamic Filter):** Add Donchian Channel / Support & Resistance Breakout Gates. Goal: Filter out internal range noise and only trigger entries on structural market expansions.
@@ -12,13 +11,6 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ### [v0.2.0-HMA-ATR-EOD] - 2026-08-09 (Archived Experiment)
 - **Phase:** In-Sample Training (IS) [FAILED]
-- **Target Asset:** SP_500_E_MINI (ES) / MNQ
-- **Pre-Execution Hypothesis:** Eliminating dual-indicator lag by replacing slow/fast HMA crossovers with a **Single Hull Moving Average (HMA) Slope Direction** combined with an **Average True Range (ATR) Volatility Gating Filter** will eliminate whipsaw losses in sideways/choppy regimes while preserving trend capture.
-- **Economic Rationale:** Dual-indicator moving average crossovers suffer from compounding lag, entering late and getting whipsawed during consolidation. Measuring the continuous mathematical velocity (slope) of a single HMA removes confirmation delay, while an ATR volatility gate acts as a structural bouncer—refusing to take trades when market energy is below a minimum institutional threshold.
-
-
-### [v0.2.0-HMA-ATR-EOD] - 2026-08-09 (Active Development)
-- **Phase:** In-Sample Training (IS) 
 - **Target Asset:** SP_500_E_MINI (ES) / MNQ
 - **Pre-Execution Hypothesis:** Eliminating dual-indicator lag by replacing slow/fast HMA crossovers with a **Single Hull Moving Average (HMA) Slope Direction** combined with an **Average True Range (ATR) Volatility Gating Filter** will eliminate whipsaw losses in sideways/choppy regimes while preserving trend capture.
 - **Economic Rationale:** Dual-indicator moving average crossovers suffer from compounding lag, entering late and getting whipsawed during consolidation. Measuring the continuous mathematical velocity (slope) of a single HMA removes confirmation delay, while an ATR volatility gate acts as a structural bouncer—refusing to take trades when market energy is below a minimum institutional threshold.
@@ -40,7 +32,7 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 - **Empirical Audit Results:**
   - **In-Sample (Training):** Sharpe: 0.1 | CAGR: 4.1% | Max Drawdown: 15.1%
   - **Out-of-Sample (Blind Test):** Sharpe: -0.8 | CAGR: -4.9% | Max Drawdown: 17.1%
-- **Post-Mortem Conclusion:** **Hypothesis Proven Correct.** Cutting positions flat every afternoon completely destroyed trend-following alpha. EOD liquidation rule abandoned.
+- **Post-Mortem Conclusion:** **Hypothesis Proven Correct.** Cutting positions flat every afternoon completely destroyed trend-following alpha.
 **Strategic Pivot for Prop Firm Compliance:** For live prop firm evaluations (Apex/Topstep), sacrificing some raw momentum via EOD flattening is an acceptable trade-off to survive brutal trailing max drawdown rules and overnight gap risk.
 
 ### [v0.1.0-BASELINE] - 2026-08-05 21:00 EST (Archived Experiment)
@@ -53,6 +45,27 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 
 ##  System Architecture & Infrastructure Changelog
 
+## [v2.9.0] - 2026-08-10 (The Multi-Format Resiliency & Cloud Release Pipeline)
+### Added
+- **Multi-Format Metric Ingestion (`backend_metrics.py`):** Upgraded backend loaders to tolerate and parse multi-format metric files seamlessly (`.msgpack.zst`, `.msgpack`, and legacy `.json`), paired with native Gzip `.csv.gz` trade log ingestion.
+- **GitHub Releases PDF Offloading (`app.py`, `ui_components.py`):** Migrated heavy uncompressed 300 DPI PDF artifacts out of local storage and into GitHub Release tags (`v0.1`, `v0.2`), streaming them dynamically on-demand to maintain near-zero local repository bloat.
+
+### Fixed
+- **Multi-Format Report Caching (`backend_metrics.py`):** Expanded `get_cached_reports()` directory scanners to aggregate and deduplicate reports across binary, compressed, and text formats.
+
+---
+
+## [v2.8.1] - 2026-08-09 (The Card-Scoped Markdown & Zstd Binary Polish)
+### Added
+- **Zstandard Max Compression (`compress_reports.py`, `backend_metrics.py`):** Upgraded the artifact pipeline to serialize and compress QuantConnect metric dumps into hyper-compressed `.msgpack.zst` binary files (Max Level 22), reducing local and git storage bloat by over 90%.
+- **Native Gzip CSV Compression (`compress_reports.py`, `ui_components.py`):** Upgraded the artifact pipeline to compress raw `_trades.csv` and `_orders.csv` execution logs into native `.csv.gz` archives (Level 9), slashing local storage bloat by 70–80% while preserving seamless Pandas ingestion and human-readable raw tab inspection.
+
+### Fixed
+- **Card-Scoped Research Logs (`app.py`):** Patched markdown path-resolution to dynamically bind `current_pdf` in the card-swiper deck, ensuring that flipping between model iterations instantly renders the exact matching `.md` research notes.
+- **Rolling Sharpe Stability Chart:** Restructured rolling window calculations with dynamic fallback sizing to guarantee zero rendering errors across backtests with smaller trade counts.
+- **Variable Scope Initialization:** Patched local variable scoping (`matching_zst`) in backend metric loaders to prevent unbound exceptions during directory scans.
+---
+
 ## [v2.8.0] - 2026-08-09 (The Temporal Analytics & Strategy Stability Update)
 ### Added
 - **Executive Diagnostics Text Bar (`ui_components.py`):** Integrated a clean institutional summary block tracking Average Winning Trade Duration, Average Losing Trade Duration, Average Win/Loss amounts, Most Profitable Hour, and Worst Performing Session.
@@ -64,6 +77,8 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 ### Fix
 - **Fix:** Fixed rolling sharpe chart failed to render
 
+---
+
 ## [v2.7.0] - 2026-08-08 (The Advanced Tail-Risk & Spaghetti Variance Update)
 ### Added
 - **Extended Monte Carlo Tail Bounds (P5 & P95):** Upgraded the bootstrap simulation engine to map extreme tail risk (P5 deep red and P95 vivid green) alongside P10, Median, and P90 confidence boundaries.
@@ -73,6 +88,8 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 ### Optimized
 - **Monte Carlo Opacity & Contrast:** Fine-tuned spaghetti path opacity (`0.5`) and confidence band stroke weight (`2.2px` at `0.85` opacity) for optimal Bloomberg-style terminal readability.
 - **Tail-Risk Metric Cards:** Extended the dynamic red/green institutional metric styling to Monte Carlo summary outputs (Projected Median Ending PnL and Risk of Ruin).
+
+---
 
 ## [v2.6.0] - 2026-08-08 (The Institutional Terminal UI & Dynamic Risk Polish)
 ### Added
@@ -85,6 +102,8 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 - **Fragmented Monte Carlo Engine (`@st.fragment`):** Isolated the Monte Carlo simulation sliders and charts so parameter adjustments (simulations up to 10k, horizons up to 500) execute instantly in RAM without triggering a full-page Streamlit reload.
 - **Modularized UI Styling Architecture:** Extracted global CSS and terminal themes into a dedicated `ui_styles.py` module to maintain strict Separation of Concerns across the app architecture.
 - **Memory & Rendering Hygiene:** Enforced `low_memory=False` and optimized data downcasting for large historical trade and order CSV logs to prevent browser DOM lag.
+
+---
 
 ## [v2.5.1] - 2026-08-07 (The Pro Dashboard & ISO Compliance Polish)
 ### Added

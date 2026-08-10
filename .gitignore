@@ -98,7 +98,6 @@ secret_sauce/
 
 # 2. Raw Data & Large Storage (Keep data local or in QC)
 storage/
-*.zst
 *.parquet
 *.duckdb
 
