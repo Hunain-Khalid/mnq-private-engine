@@ -135,7 +135,6 @@ def render_interactive_equity_chart(metrics, eq_df):
         end_date_str = "N/A"
     
     st.markdown(f"**Backtest Date Range:** `{start_date_str}` ➔ `{end_date_str}`")
-    st.markdown(f"**Backtest Date Range:** `{start_date_str}` ➔ `{end_date_str}`")
 
     start_cap_val = eq_df['Equity'].iloc[0]
     
