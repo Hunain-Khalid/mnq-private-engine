@@ -1,4 +1,3 @@
-
 ### [v0.3.0 to v0.4.5-ROADMAP] - Research Pipeline & Iteration Schedule (Active Development)
 - **v0.3.0 (The Foundation):** Fast Hull Moving Average (HMA) + ATR Volatility Gate + EOD Prop-Firm Flat Rule. Goal: Stop whipsaw bleeding and establish positive expectancy baseline.
 - **v0.4.0 (The Dynamic Filter):** Add Donchian Channel / Support & Resistance Breakout Gates. Goal: Filter out internal range noise and only trigger entries on structural market expansions.
@@ -56,6 +55,11 @@
 ---
 
 ##  System Architecture & Infrastructure Changelog
+
+## [v3.2.0] - 2026-08-10 (The Flexbox Diagnostics & EKG Waterfall Upgrade)
+### Added
+- **Flexbox Executive Diagnostics Card (`ui_components.py`):** Upgraded the execution health check into an adaptive multi-column flexbox grid, tracking detailed Avg/Min/Max trade durations for overall, winning, and losing cohorts alongside dollar amounts and **Commission Fee Drag %**.
+- **Trade-by-Trade PnL Waterfall EKG (`ui_components.py`):** Replaced sparse intraday session charts with a trade-by-trade EKG sequence fingerprint, exposing micro-structure winners and losers chronologically.
 
 ## [v3.1.0] - 2026-08-19 (The Cloud-Registry & Google Drive Artifact Architecture)
 ### Added

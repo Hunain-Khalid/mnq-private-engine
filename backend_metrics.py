@@ -20,7 +20,7 @@ def get_gdrive_pdf_url(base_name: str) -> str:
     file_id = GDRIVE_FILE_MAP.get(base_name)
     if file_id:
         return f"https://drive.google.com/uc?export=download&id={file_id}"
-    return "#" # Fallback link if ID is missing
+    return "#"
 
 @st.cache_data
 def get_cached_reports():
@@ -30,7 +30,6 @@ def get_cached_reports():
         reports_dir.mkdir()
         return []
     
-    # 🛡️ Cast a wide net for any metric file format so no reports are missed
     files = (
         list(reports_dir.glob("*.msgpack.zst")) + 
         list(reports_dir.glob("*.msgpack")) + 
@@ -61,7 +60,6 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
     """Strictly parses Zst-compressed MessagePack, MessagePack, or JSON files and calculates trade stats."""
     reports_dir = Path(reports_dir_str)
     
-    # 1. Multi-format metric file lookup (.msgpack.zst, .msgpack, .json)
     matching_zst = reports_dir / f"{pdf_stem}.msgpack.zst"
     if not matching_zst.exists():
         matching_zst = reports_dir / f"{pdf_stem}.msgpack"
@@ -73,7 +71,6 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
         clean_target = pdf_stem.lower().replace(" ", "").replace("_", "").replace("msgpack", "").replace(".zst", "")
         matching_zst = next((j for j in candidates if clean_target in j.stem.lower().replace(" ", "").replace("_", "").replace("msgpack", "").replace(".zst", "")), None)
 
-    # 2. Bulletproof trade log lookup (.csv.gz or .csv)
     matching_trades = reports_dir / f"{pdf_stem}_trades.csv.gz"
     if not matching_trades.exists():
         matching_trades = reports_dir / f"{pdf_stem}_trades.csv"
@@ -102,7 +99,6 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
             with open(matching_zst, "rb") as f:
                 file_bytes = f.read()
             
-            # Handle decoding based on file extension
             if matching_zst.name.endswith(".zst"):
                 dctx = zstd.ZstdDecompressor()
                 packed_bytes = dctx.decompress(file_bytes)
@@ -137,7 +133,6 @@ def load_qc_json_metrics(pdf_stem: str, reports_dir_str: str = "reports"):
 
     if matching_trades and matching_trades.exists():
         try:
-            # Pandas natively handles .csv.gz decompression
             df_t = pd.read_csv(matching_trades, low_memory=False)
             trades_count = len(df_t)
             

@@ -9,7 +9,8 @@ import streamlit as st
 import pandas as pd
 import altair as alt
 
-from ui_components import render_sidebar, render_pro_tabs
+from components.sidebar import render_sidebar
+from components.tabs.main_tabs import render_pro_tabs
 from backend_metrics import get_cached_reports, load_qc_json_metrics, cached_read_markdown
 from ui_styles import inject_global_institutional_theme
 
@@ -181,12 +182,12 @@ if page == "Backtests (IS / OOS)":
                     
                 with nav_col2:
                     if len(model_reports) > 1:
-                        if st.button("🡸 PREV", key=f"prev_{selected_model}", disabled=(current_idx == 0), width='stretch'):
+                        if st.button("🡸 PREV", key=f"prev_{selected_model}", disabled=(current_idx == 0)):
                             st.session_state[state_key] = max(0, current_idx - 1)
                             st.rerun()
                 with nav_col3:
                     if len(model_reports) > 1:
-                        if st.button("NEXT 🡺", key=f"next_{selected_model}", disabled=(current_idx == len(model_reports) - 1), width='stretch'):
+                        if st.button("NEXT 🡺", key=f"next_{selected_model}", disabled=(current_idx == len(model_reports) - 1)):
                             st.session_state[state_key] = min(len(model_reports) - 1, current_idx + 1)
                             st.rerun()
 
@@ -311,7 +312,6 @@ elif page == "Engineering Archive":
     changelog_path = Path("CHANGELOG.md")
     if changelog_path.exists():
         changelog_content = cached_read_markdown(str(changelog_path))
-         # 📜 SCROLLABLE TERMINAL WINDOW CONTAINER (Height in pixels)
         with st.container(height=400, border=True):
             st.markdown(changelog_content)
     else:
