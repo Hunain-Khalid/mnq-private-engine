@@ -307,12 +307,12 @@ elif page == "Live / Paper Trading":
 # ==========================================
 elif page == "Engineering Archive":
     st.title("Engineering Changelog & System Architecture")
-    st.markdown("The chronological history of our infrastructure pivots, bugs, and lessons learned.")
-    
+    st.markdown("All system architecture pivots, UI upgrades, and chronological quantitative research hypotheses are logged below.")
     changelog_path = Path("CHANGELOG.md")
     if changelog_path.exists():
         changelog_content = cached_read_markdown(str(changelog_path))
-        with st.container(border=True):
+         # 📜 SCROLLABLE TERMINAL WINDOW CONTAINER (Height in pixels)
+        with st.container(height=400, border=True):
             st.markdown(changelog_content)
     else:
         st.info("Create a root CHANGELOG.md file to document your overarching engineering history.")

@@ -1,13 +1,22 @@
-#  Alpha Flush Node - Master Engineering & Research Changelog
-
-All system architecture pivots, UI upgrades, and chronological quantitative research hypotheses are logged below.
-
----
 
 ### [v0.3.0 to v0.4.5-ROADMAP] - Research Pipeline & Iteration Schedule (Active Development)
 - **v0.3.0 (The Foundation):** Fast Hull Moving Average (HMA) + ATR Volatility Gate + EOD Prop-Firm Flat Rule. Goal: Stop whipsaw bleeding and establish positive expectancy baseline.
 - **v0.4.0 (The Dynamic Filter):** Add Donchian Channel / Support & Resistance Breakout Gates. Goal: Filter out internal range noise and only trigger entries on structural market expansions.
 - **v0.4.5 (The Holy Grail):** Dynamic ATR-Based Stop-Loss (cut losers short) coupled with Trailing HMA/ATR Exit (let runners run). Goal: Maximize payoff ratio to achieve institutional trend-following skew.
+
+### [v0.2.1-HMA-STRESS-TEST] - 2026-08-10 (Active Development)
+- **Phase:** In-Sample Training (IS) [Stress Test Baseline]
+- **Target Asset:** SP_500_E_MINI (ES) / MNQ
+- **Pre-Execution Hypothesis:** Shortening the Hull Moving Average (HMA) to an ultra-fast length (e.g., 3 to 5 periods) will maximize trade frequency, intentionally exposing the strategy to pure market noise and untradable chop *prior* to implementing volatility gating and risk management.
+- **Economic Rationale:** Before building structural bouncers (ATR gates) or advanced risk models, we must map out the unmanaged, raw variance floor of high-frequency HMA momentum. By flooding the system with trades, we expect severe drawdowns and death-by-a-thousand-cuts fees, creating a baseline "noise profile" to measure future filter improvements against.
+- **Architectural Rules:**
+  1. **Ultra-Fast Trend Engine:** Calculate a 3-period HMA on Minute resolution. Check immediate slope velocity (`HMA[t] > HMA[t-1]`).
+  2. **Zero Volatility Gates (Raw State):** Intentionally omit ATR/ADX gating to observe unconstrained whipsaw drag.
+  3. **Execution & Risk:** Standard position sizing with prop-firm EOD flat constraints (3:45 PM EST).
+- **Expected Empirical Outcomes:** Massive trade count (thousands of trades), extreme fee drag, and a catastrophic max drawdown profile. This establishes our experimental "control group" for the v0.3.0 volatility filter upgrade.
+- **Empirical Audit Results:** Logged in individual iteration ledger (`reports/v0.2.1_hma3_stress.md`)
+
+---
 
 ### [v0.2.0-HMA-ATR-EOD] - 2026-08-09 (Archived Experiment)
 - **Phase:** In-Sample Training (IS) [FAILED]
@@ -22,6 +31,7 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 - **Empirical Audit Results:** Failed due to initial indicator resolution mismatch (mixing Daily indicators with Minute execution loops) and structural EOD friction cutting off intraday momentum. Plus no structural edge to build on
 - **Pivot Action:** Documented failure in research log. Moving to structured v0.3-v0.4.5 pipeline.
 
+---
 
 ### [v0.1.01-EOD] - 2026-08-07 15:00 EST (Archived Experiment)
 - **In-Sample Window:** 2020-01-01 to 2024-06-30 (Parameter Tuning)
@@ -34,6 +44,8 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
   - **Out-of-Sample (Blind Test):** Sharpe: -0.8 | CAGR: -4.9% | Max Drawdown: 17.1%
 - **Post-Mortem Conclusion:** **Hypothesis Proven Correct.** Cutting positions flat every afternoon completely destroyed trend-following alpha.
 **Strategic Pivot for Prop Firm Compliance:** For live prop firm evaluations (Apex/Topstep), sacrificing some raw momentum via EOD flattening is an acceptable trade-off to survive brutal trailing max drawdown rules and overnight gap risk.
+
+---
 
 ### [v0.1.0-BASELINE] - 2026-08-05 21:00 EST (Archived Experiment)
 - **Phase:** In-Sample Training (IS) [FAILED]
@@ -54,6 +66,8 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 - **Repository Size & Performance:** Maintained an immaculate ~1.08 MB git pack size by offloading binary reports to cloud storage and optimizing local data deserialization via C-speed binary parsers.
 - **Resilient UI Error-Handling:** Integrated universal numeric safety (`safe_float`) and multi-format directory scanners (`.msgpack.zst`, `.msgpack`, `.json`) to guarantee zero rendering exceptions across legacy and modern backtest structures.
 
+---
+
 ## [v3.0.0] - 2026-08-10 (The Clean-History & Cloud-Native Production Milestone)
 ### Added
 - **GitHub Releases Cloud-PDF Offloading (`app.py`, `ui_components.py`):** Fully decoupled heavy 300 DPI PDF research reports from local repository storage, implementing dynamic runtime streaming via GitHub Release tags (`v0.1`, `v0.2`).
@@ -62,6 +76,8 @@ All system architecture pivots, UI upgrades, and chronological quantitative rese
 ### Optimized
 - **Repository History Scrub:** Purged all legacy uncompressed `.pdf`, `.json`, and `.csv` binaries from historical Git commit tracking via `git filter-repo`, reducing total repository pack size down to an immaculate 1.08 MB.
 - **Resilient UI Error-Handling:** Integrated type-checked date parsing and universal numeric safety (`safe_float`) to guarantee zero rendering exceptions across varying backtest index formats.
+
+---
 
 ## [v2.9.0] - 2026-08-10 (The Multi-Format Resiliency & Cloud Release Pipeline)
 ### Added

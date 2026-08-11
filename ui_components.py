@@ -124,7 +124,6 @@ def render_monte_carlo_fragment(metrics, base_name):
 @st.fragment
 def render_interactive_equity_chart(metrics, eq_df):
     """Renders the clean single-color institutional equity curve, starting equity baseline, and 12-metric grid."""
-    # 🛡️ Safely extract date range for display (handles datetime vs integer indexes)
     try:
         min_idx = eq_df.index.min()
         max_idx = eq_df.index.max()
@@ -138,12 +137,15 @@ def render_interactive_equity_chart(metrics, eq_df):
 
     start_cap_val = eq_df['Equity'].iloc[0]
     
+    x_col = 'Time:T' if 'Time' in eq_df.index.name or isinstance(eq_df.index, pd.DatetimeIndex) else 'Trade_Index:Q'
+    x_title = 'Timeline (Trade Exit Date)' if x_col == 'Time:T' else 'Trade Sequence Index'
+
     line = alt.Chart(eq_df.reset_index()).mark_line(
         color='#00E676', strokeWidth=2.2
     ).encode(
-        x=alt.X('Time:T', title='Timeline (Trade Exit Date)'),
+        x=alt.X(x_col, title=x_title),
         y=alt.Y('Equity:Q', scale=alt.Scale(zero=False), title='Account Equity ($)'),
-        tooltip=['Time:T', 'Equity:Q']
+        tooltip=[x_col, 'Equity:Q']
     )
     
     baseline_rule = alt.Chart(pd.DataFrame({'y': [start_cap_val]})).mark_rule(
@@ -218,8 +220,6 @@ def render_interactive_equity_chart(metrics, eq_df):
     else:
         sqn_val = 0.0
 
-        
-
     cum_max = eq_series.cummax()
     drawdowns_pct = (eq_series - cum_max) / cum_max
     ulcer_index = np.sqrt(np.mean(drawdowns_pct ** 2)) * 100
@@ -234,17 +234,21 @@ def render_interactive_equity_chart(metrics, eq_df):
     # ==========================================
     r1_c1, r1_c2, r1_c3, r1_c4, r1_c5 = st.columns(5)
     
-    # 🛡️ Bulletproof Sharpe conversion
+    def safe_float(val, default=0.0):
+        try:
+            return float(str(val).replace('x', '').replace('%', '').strip())
+        except (ValueError, TypeError):
+            return default
+
     sharpe_raw = metrics.get("sharpe", "N/A")
-    try:
-        sharpe_float = float(sharpe_raw)
-    except (ValueError, TypeError):
-        sharpe_float = 0.0
+    sharpe_float = safe_float(sharpe_raw, 0.0)
+    pf_raw = metrics.get("profit_factor", "N/A")
+    pf_float = safe_float(pf_raw, 1.0)
 
     institutional_metric(r1_c1, "Sharpe Ratio", sharpe_raw, is_positive=sharpe_float >= 0)
     institutional_metric(r1_c2, "Sortino Ratio", f"{sortino_val:.2f}", is_positive=sortino_val >= 0)
     institutional_metric(r1_c3, "Calmar Ratio", f"{calmar_val:.2f}", is_positive=calmar_val >= 0)
-    institutional_metric(r1_c4, "Profit Factor", metrics.get("profit_factor", "N/A"), is_positive=float(metrics.get("profit_factor", 1) or 1) >= 1.0)
+    institutional_metric(r1_c4, "Profit Factor", pf_raw, is_positive=pf_float >= 1.0)
     institutional_metric(r1_c5, "System Quality (SQN)", f"{sqn_val:.2f}", is_positive=sqn_val >= 0)
 
     r2_c1, r2_c2, r2_c3, r2_c4, r2_c5 = st.columns(5)
@@ -286,24 +290,29 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
     with tab_analytics:
         col_a, col_b = st.columns(2)
         with col_a:
-            st.markdown("##### Trade Distribution (Winners vs Losers)")
-            win_c = metrics.get('winners', 0)
-            lose_c = metrics.get('losers', 0)
-            break_c = metrics.get('breakevens', 0)
-            
-            donut_data = pd.DataFrame({
-                'Category': ['Winners', 'Losers', 'Breakevens'],
-                'Count': [win_c, lose_c, break_c]
-            })
-            
-            donut_chart = alt.Chart(donut_data).mark_arc(innerRadius=50).encode(
-                theta=alt.Theta(field="Count", type="quantitative"),
-                color=alt.Color(field="Category", type="nominal", scale=alt.Scale(domain=['Winners', 'Losers', 'Breakevens'], range=['#00E676', '#FF5252', '#FFA726'])),
-                tooltip=['Category', 'Count']
-            ).properties(height=200)
-            
-            with st.container(border=True):
-                st.altair_chart(donut_chart, width='stretch')
+            st.markdown("##### Trade-by-Trade PnL Waterfall (Strategy EKG Fingerprint)")
+            raw_df = metrics.get("raw_trades")
+            if isinstance(raw_df, pd.DataFrame) and not raw_df.empty:
+                pnl_col = next((col for col in raw_df.columns if any(k in col.lower() for k in ['profit', 'net', 'pnl', 'p&l'])), None)
+                if pnl_col:
+                    ekg_df = raw_df.copy()
+                    ekg_df['Clean_PnL'] = pd.to_numeric(ekg_df[pnl_col].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
+                    ekg_df['Trade_Index'] = range(len(ekg_df))
+                    ekg_df['Outcome'] = ekg_df['Clean_PnL'].apply(lambda x: 'Winner' if x > 0 else 'Loser')
+                    
+                    ekg_chart = alt.Chart(ekg_df).mark_bar().encode(
+                        x=alt.X('Trade_Index:Q', title='Trade Sequence Index'),
+                        y=alt.Y('Clean_PnL:Q', title='Trade P&L ($)'),
+                        color=alt.Color('Outcome:N', scale=alt.Scale(domain=['Winner', 'Loser'], range=['#00E676', '#FF5252']), legend=None),
+                        tooltip=['Trade_Index', 'Clean_PnL']
+                    ).properties(height=200).interactive()
+                    
+                    with st.container(border=True):
+                        st.altair_chart(ekg_chart, width='stretch')
+                else:
+                    st.info("PnL column missing for EKG chart.")
+            else:
+                st.warning("No trade data available.")
 
         with col_b:
             st.markdown("##### Returns Distribution (Dollar PnL Buckets)")
@@ -341,46 +350,44 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
         st.markdown("##### Temporal Edge & Strategy Stability (Rolling Sharpe)")
         raw_df = metrics.get("raw_trades")
         if isinstance(raw_df, pd.DataFrame) and not raw_df.empty:
-            entry_col = next((col for col in raw_df.columns if any(k in col.lower() for k in ['entry', 'start', 'open', 'time'])), None)
-            exit_col = next((col for col in raw_df.columns if any(k in col.lower() for k in ['exit', 'end', 'close'])), None)
-            pnl_col = next((col for col in raw_df.columns if any(k in col.lower() for k in ['profit', 'net', 'pnl', 'p&l'])), None)
-            
-            if entry_col and pnl_col:
-                try:
+            try:
+                entry_col = next((col for col in raw_df.columns if any(k in col.lower() for k in ['entry', 'start', 'open', 'time'])), None)
+                exit_col = next((col for col in raw_df.columns if any(k in col.lower() for k in ['exit', 'end', 'close'])), None)
+                pnl_col = next((col for col in raw_df.columns if any(k in col.lower() for k in ['profit', 'net', 'pnl', 'p&l'])), None)
+                
+                if entry_col and pnl_col:
                     chart_df = raw_df.copy()
                     chart_df['Entry_Time'] = pd.to_datetime(chart_df[entry_col], errors='coerce')
                     chart_df['Clean_PnL'] = pd.to_numeric(chart_df[pnl_col].astype(str).str.replace('$', '').str.replace(',', ''), errors='coerce')
                     
-                    # Calculate overall average duration
-                    avg_duration_str = "N/A"
+                    avg_duration_str, min_dur_str, max_dur_str = "N/A", "N/A", "N/A"
                     if exit_col:
                         chart_df['Exit_Time'] = pd.to_datetime(chart_df[exit_col], errors='coerce')
                         durations = (chart_df['Exit_Time'] - chart_df['Entry_Time']).dt.total_seconds() / 60.0
-                        avg_mins = durations.mean()
-                        if not np.isnan(avg_mins):
-                            if avg_mins >= 60:
-                                avg_duration_str = f"{avg_mins / 60:.1f} hours"
-                            else:
-                                avg_duration_str = f"{avg_mins:.1f} mins"
+                        def format_dur(mins):
+                            if np.isnan(mins): return "N/A"
+                            return f"{mins / 60:.1f}h" if mins >= 60 else f"{mins:.1f}m"
+                        avg_duration_str = format_dur(durations.mean())
+                        min_dur_str = format_dur(durations.min())
+                        max_dur_str = format_dur(durations.max())
                     
-                    # Calculate separate Winner vs Loser durations & amounts
                     winning_trades = chart_df[chart_df['Clean_PnL'] > 0]
                     losing_trades = chart_df[chart_df['Clean_PnL'] < 0]
                     
-                    def get_avg_dur(sub_df):
-                        if sub_df.empty or not exit_col: return "N/A"
-                        d = (sub_df['Exit_Time'] - sub_df['Entry_Time']).dt.total_seconds() / 60.0
-                        m = d.mean()
-                        if np.isnan(m): return "N/A"
-                        return f"{m/60:.1f}h" if m >= 60 else f"{m:.1f}m"
-                        
-                    avg_win_dur = get_avg_dur(winning_trades)
-                    avg_loss_dur = get_avg_dur(losing_trades)
+                    win_durs = (winning_trades['Exit_Time'] - winning_trades['Entry_Time']).dt.total_seconds() / 60.0 if not winning_trades.empty and exit_col else pd.Series([0])
+                    loss_durs = (losing_trades['Exit_Time'] - losing_trades['Entry_Time']).dt.total_seconds() / 60.0 if not losing_trades.empty and exit_col else pd.Series([0])
+                    
+                    avg_win_dur = format_dur(win_durs.mean())
+                    max_win_dur = format_dur(win_durs.max())
+                    min_win_dur = format_dur(win_durs.min())
+                    
+                    avg_loss_dur = format_dur(loss_durs.mean())
+                    max_loss_dur = format_dur(loss_durs.max())
+                    min_loss_dur = format_dur(loss_durs.min())
                     
                     avg_win_amt = f"${winning_trades['Clean_PnL'].mean():,.2f}" if not winning_trades.empty else "$0.00"
                     avg_loss_amt = f"-${abs(losing_trades['Clean_PnL'].mean()):,.2f}" if not losing_trades.empty else "$0.00"
-                    
-                    # 1. CLEAN INSTITUTIONAL EXECUTIVE TEXT SUMMARY BAR
+
                     st.markdown(f"""
                         <div style="
                             background-color: #121C24;
@@ -393,14 +400,13 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
                             color: #F8FAFC;
                             font-size: 14px;
                         ">
-                            <div style="font-weight: 600; color: #94A3B8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">📊 Execution Diagnostics</div>
-                            <span style="margin-right: 15px;">⏱️ <b>Avg Duration:</b> {avg_duration_str}</span>
-                            <span style="margin-right: 15px; color: #00E676;">🟢 <b>Avg Win Dur:</b> {avg_win_dur} ({avg_win_amt})</span>
-                            <span style="color: #FF5252;">🔴 <b>Avg Loss Dur:</b> {avg_loss_dur} ({avg_loss_amt})</span>
+                            <div style="font-weight: 600; color: #94A3B8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">📊 Execution & Duration Diagnostics</div>
+                            <span style="margin-right: 20px;">⏱️ <b>Duration (Avg/Min/Max):</b> {avg_duration_str} / {min_dur_str} / {max_dur_str}</span><br>
+                            <span style="margin-right: 20px; color: #00E676;">🟢 <b>Win Dur (Avg/Min/Max):</b> {avg_win_dur} / {min_win_dur} / {max_win_dur} ({avg_win_amt})</span><br>
+                            <span style="color: #FF5252;">🔴 <b>Loss Dur (Avg/Min/Max):</b> {avg_loss_dur} / {min_loss_dur} / {max_loss_dur} ({avg_loss_amt})</span>
                         </div>
                     """, unsafe_allow_html=True)
-                    
-                    # 2. Rolling Sharpe Ratio Overlay (Safeguarded window size)
+
                     window_size = min(30, max(2, len(chart_df) // 2))
                     chart_df['Rolling_Sharpe'] = (
                         chart_df['Clean_PnL'].rolling(window=window_size).mean() / 
@@ -423,11 +429,10 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
                             st.altair_chart(line_chart, width='stretch')
                     else:
                         st.info("Not enough trades in this backtest to calculate rolling stability.")
-                        
-                except Exception as e:
-                    st.warning(f"Could not generate temporal edge charts: {e}")
-            else:
-                st.info("Required timestamp and PnL columns not found for temporal analytics.")
+            except Exception as e:
+                pass
+        else:
+            st.info("Required timestamp and PnL columns not found for temporal analytics.")
                 
     with tab_ledger:
         col_left, col_right = st.columns([1.5, 1])
@@ -445,7 +450,6 @@ def render_pro_tabs(metrics, md_path, pdf_path, base_name, matching_trades, matc
                 st.write(f"**PDF Report:** `{base_name}.pdf`")
                 st.write(f"**Storage:** Google Drive (Cloud)")
                 
-                # Fetch the dynamic Google Drive URL from backend metrics
                 from backend_metrics import get_gdrive_pdf_url
                 cloud_pdf_url = get_gdrive_pdf_url(base_name)
                 
