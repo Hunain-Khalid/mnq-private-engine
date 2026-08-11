@@ -12,7 +12,10 @@ GDRIVE_FILE_MAP = {
     "v0.1.01_eod_isp": "1xlz_CSnYF-w3ytmpXqbLSr9Gy2KaXsm3",
     "v0.1.01_eod_oosf": "1CblMEutQ-sWSdf-4cW-hOoiXCh-hCznN",
     "v0.2_hma20_eod_isf": "10T58RNmBi58u7zHnRLCd0DZDc1B8PjD4",
-    "v0.2.01_hma3_eod_isf": "12eK6g8YmbwzE9RuZpp5DYDzpgv_b8tbZ"
+    "v0.2.01_hma3_eod_isf": "12eK6g8YmbwzE9RuZpp5DYDzpgv_b8tbZ",
+    "v0.2.02_msl_hma3_eod_isf":"1dOhzIJ1j-pwV2qh0ZSsWFdmeP13u5aAs",
+    "v0.2.03_mslc_hma3_eod_atr_isf":"1AH7EMvXWdHg4RDPsePWXpzN7lGNeEy6j"
+    
 }
 
 def get_gdrive_pdf_url(base_name: str) -> str:

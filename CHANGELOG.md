@@ -3,7 +3,19 @@
 - **v0.4.0 (The Dynamic Filter):** Add Donchian Channel / Support & Resistance Breakout Gates. Goal: Filter out internal range noise and only trigger entries on structural market expansions.
 - **v0.4.5 (The Holy Grail):** Dynamic ATR-Based Stop-Loss (cut losers short) coupled with Trailing HMA/ATR Exit (let runners run). Goal: Maximize payoff ratio to achieve institutional trend-following skew.
 
-### [v0.2.1-HMA-STRESS-TEST] - 2026-08-10 (Active Development)
+### Research Hypothesis (Iteration 0.3/0.3.01) - 2026-08-11+ (PLANNED)
+- **Thesis:** Implementing time-based stop scaling and dual runner/lagger position sizing (with a fast scalp leg and a trailing momentum leg) will improve break-even frequency and stabilize drawdowns. Furthermore, utilizing a volatility channel envelope bounded by `-[HMA(3)]` and `+[HMA(3)]` as an entry gate will filter out low-conviction chop zones, shielding the strategy from whipsaw losses during non-trending regimes. (entry gate planned for 0.3.01)
+
+The Core Logic for Step 1:
+
+    The Friction Floor (WSC / Worst-Case Scenario): For E-mini S&P (ES) or Micro E-mini (MES/MNQ), round-trip commissions + exchange fees + worst-case slippage max out around $12 per contract.
+
+    The Sprinter's Sole Job: As soon as price moves in our favor by an amount that guarantees net profit after the $12 worst-case friction (e.g., locking in $25 to $35 gross profit, which nets $13+ clean), instantly scale out the Sprinter leg. This turns "death-by-a-thousand-cuts fees" into a steady stream of micro-wins.
+
+    The Lagger's Job: Leaves the friction behind, moves its stop to breakeven immediately, and trails using a wide ATR distance so it doesn't get shaken out by market noise.
+
+
+### [v0.2.1-HMA-STRESS-TEST] - 2026-08-10 (Archived Experiment)
 - **Phase:** In-Sample Training (IS) [Stress Test Baseline]
 - **Target Asset:** SP_500_E_MINI (ES) / MNQ
 - **Pre-Execution Hypothesis:** Shortening the Hull Moving Average (HMA) to an ultra-fast length (e.g., 3 to 5 periods) will maximize trade frequency, intentionally exposing the strategy to pure market noise and untradable chop *prior* to implementing volatility gating and risk management.
@@ -14,7 +26,9 @@
   3. **Execution & Risk:** Standard position sizing with prop-firm EOD flat constraints (3:45 PM EST).
 - **Expected Empirical Outcomes:** Massive trade count (thousands of trades), extreme fee drag, and a catastrophic max drawdown profile. This establishes our experimental "control group" for the v0.3.0 volatility filter upgrade.
 - **Empirical Audit Results:** Logged in individual iteration ledger (`reports/v0.2.1_hma3_stress.md`)
-
+- **Fix Entry Timing: Shift schedule rule to enter at 9:31 AM EST to capture the opening range.
+- **Short-Side Gating: Temporarily disable short entries or enforce strict ATR-channel volatility gating before allowing short positions during bull regimes.
+Duration Tuning: Shorten Sprinter target to 15 points and let Lagger ride with an ATR-trailing stop rather than relying solely on EOD flat liquidation.
 ---
 
 ### [v0.2.0-HMA-ATR-EOD] - 2026-08-09 (Archived Experiment)
@@ -55,6 +69,11 @@
 ---
 
 ##  System Architecture & Infrastructure Changelog
+
+## [v3.4.0] - 2026-08-11 (The Long/Short Split & High-Density Diagnostics Upgrade)
+### Added
+- **Long vs. Short Structural Split (`analytics_tab.py`):** Added a dedicated performance breakdown card above temporal analytics, isolating trade counts, net P&L, win rates, and average trade returns for long versus short cohorts.
+- **High-Density Squished Diagnostics Grid (`analytics_tab.py`):** Re-engineered the 3-column execution card into a compact high-density layout, fitting duration cohorts, streak averages, alpha velocity, tail ratios, ulcer index, holding efficiency, payoff asymmetry, and commission drag into a unified executive view without vertical scrolling.
 
 ## [v3.3.0] - 2026-08-11 (The Modular Architecture & Advanced Tail Diagnostics Upgrade)
 ### Added
