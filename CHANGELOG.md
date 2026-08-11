@@ -56,6 +56,21 @@
 
 ##  System Architecture & Infrastructure Changelog
 
+## [v3.3.0] - 2026-08-11 (The Modular Architecture & Advanced Tail Diagnostics Upgrade)
+### Added
+- **Full Codebase Modularization:** Deconstructed monolithic UI and metrics files into a clean `components/` package structure (`sidebar.py`, `metric_cards.py`, `charts.py`, `monte_carlo.py`, and domain-specific `tabs/`), reducing file sizes and improving maintainability.
+- **Advanced Tail & Execution Diagnostics (`analytics_tab.py`):** Expanded the institutional diagnostics card into a 3-column professional terminal grid tracking:
+  - **Streak Averages:** Average consecutive winning and losing streak lengths alongside max streak financial impacts.
+  - **Alpha Velocity:** Net profit velocity generated per active market exposure hour ($/hr).
+  - **Tail Ratio:** P95 winning trade magnitude versus P05 losing trade tail risk.
+  - **Holding & MAE/MFE Efficiency:** Realized PnL capture relative to maximum favorable and adverse excursions.
+  - **Payoff Asymmetry & Kelly Leverage:** Win/Loss size ratios and optimal geometric sizing fractions.
+- **Emoji-Free Terminal Styling:** Stripped all UI emojis from diagnostic cards to establish a strict Bloomberg/QuantConnect institutional visual standard.
+
+### Changed
+- **Modernized Streamlit Layouts:** Replaced deprecated `use_container_width=True` parameters across all charts, tables, and metrics with modern Streamlit 1.42+ `width='stretch'` equivalents.
+- **Bulletproof CSV Auto-Detection:** Enhanced timestamp and PnL column mapping to seamlessly parse varying QuantConnect trade log formats without dropping temporal analytics.
+
 ## [v3.2.0] - 2026-08-10 (The Flexbox Diagnostics & EKG Waterfall Upgrade)
 ### Added
 - **Flexbox Executive Diagnostics Card (`ui_components.py`):** Upgraded the execution health check into an adaptive multi-column flexbox grid, tracking detailed Avg/Min/Max trade durations for overall, winning, and losing cohorts alongside dollar amounts and **Commission Fee Drag %**.
