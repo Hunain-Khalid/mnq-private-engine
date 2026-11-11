@@ -1,0 +1,41 @@
+[theme]
+# The primary accent color for widgets, sliders, tabs, and checkboxes
+primaryColor = "#00E676"
+
+# The background color of the main content area
+backgroundColor = "#0E1117"
+
+# The background color of the sidebar and cards
+secondaryBackgroundColor = "#1E222B"
+
+# The main body text color for readability
+textColor = "#E0E6ED"
+
+# The font family used throughout the user interface
+font = "sans serif"
+
+[server]
+# Optimizes browser rendering for large charts (Altair/DataFrames)
+enableCORS = false
+enableXsrfProtection = false
+# Maximize upload/download buffer sizes for larger data payloads (in MB)
+maxUploadSize = 200
+maxMessageSize = 200
+
+# Enable headless mode for cloud/WSL2 execution
+headless = true
+
+# Automatically re-run when files change (great for local dev)
+runOnSave = true
+
+[browser]
+# Disable telemetry to slightly speed up internal event loops
+gatherUsageStats = false
+
+[client]
+# Show toolbar/developer options cleanly
+showErrorDetails = true
+
+[runner]
+# Allow magic re-runs or optimize script execution threads
+magicEnabled = true
